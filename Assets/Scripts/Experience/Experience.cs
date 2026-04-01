@@ -1,15 +1,13 @@
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
 
 public class Experience : MonoBehaviour
 {
     private Transform mPlayerTransform;
     private bool mIsTrigger;
-
     public float mValue = 1f;
     public float mSpeed = 8f;
 
-    public bool IsTrigger => mIsTrigger; // Accesseur pour le Player
+    public bool IsTrigger => mIsTrigger;
 
     public void Init()
     {
@@ -25,16 +23,15 @@ public class Experience : MonoBehaviour
         mIsTrigger = true;
     }
 
-    public void Collect(ExperienceBar xpBar)
+    public void Collect(ExperienceBar pExperienceBar)
     {
-        xpBar.AddExperience(mValue);
+        pExperienceBar.AddExperience(mValue);
         ExperiencePool.Instance.ReturnExperience(this);
     }
 
     void OnEnable()
     {
         mIsTrigger = false;
-        // Accès direct sans recherche Scan-scène
         if (Player.Instance != null)
             Player.Instance.mExperienceList.Add(this);
     }

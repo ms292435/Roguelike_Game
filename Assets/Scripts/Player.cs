@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
 public class Player : Entity
@@ -7,7 +6,7 @@ public class Player : Entity
     public List<Experience> mExperienceList = new List<Experience>();
     public ExperienceBar mExperienceBar;
 
-    public float mFireRate = 10f;
+    public float mFireRate = 1f;
 
 
     public float mAttractRadius = 2f;
@@ -16,7 +15,6 @@ public class Player : Entity
     private Rigidbody2D mRigibody;
 
     private float mFireTimer = 0f;
-
 
     public static Player Instance { get; private set; }
 
@@ -34,7 +32,7 @@ public class Player : Entity
     {
         Health = 100f;
         Damage = 50f;
-        Speed = 10f;
+        Speed = 4f;
     }
 
     private void Start()
@@ -57,40 +55,39 @@ public class Player : Entity
 
     private void HandleExperience()
     {
-        Vector3 playerPos = transform.position;
-        float sqrAttract = mAttractRadius * mAttractRadius;
-        float sqrCollect = mCollectRadius * mCollectRadius;
+        Vector3 lPlayerPos = transform.position;
+        float lSqrAttract = mAttractRadius * mAttractRadius;
+        float lSqrCollect = mCollectRadius * mCollectRadius;
 
         // On boucle à l'envers car on va potentiellement retirer des éléments (Collect)
         for (int i = mExperienceList.Count - 1; i >= 0; i--)
         {
-            Experience exp = mExperienceList[i];
+            Experience lExperience = mExperienceList[i];
 
             // Calcul de distance au carré (plus performant)
-            Vector3 offset = playerPos - exp.transform.position;
-            float sqrDist = offset.sqrMagnitude;
+            Vector3 lOffset = lPlayerPos - lExperience.transform.position;
+            float lSqrDist = lOffset.sqrMagnitude;
 
             // 1. Détection (Trigger)
-            if (!exp.IsTrigger && sqrDist < sqrAttract)
+            if (!lExperience.IsTrigger && lSqrDist < lSqrAttract)
             {
-                exp.Trigger();
+                lExperience.Trigger();
             }
 
             // 2. Mouvement (si trigger)
-            if (exp.IsTrigger)
+            if (lExperience.IsTrigger)
             {
-                exp.transform.position = Vector3.MoveTowards(
-                    exp.transform.position,
-                    playerPos,
-                    exp.mSpeed * Time.deltaTime
+                lExperience.transform.position = Vector3.MoveTowards(
+                    lExperience.transform.position,
+                    lPlayerPos,
+                    lExperience.mSpeed * Time.deltaTime
                 );
             }
 
             // 3. Collecte
-            if (sqrDist < sqrCollect)
+            if (lSqrDist < lSqrCollect)
             {
-                exp.Collect(mExperienceBar);
-                // On ne fait rien d'autre pour cet index, il est retourné au pool
+                lExperience.Collect(mExperienceBar);
             }
         }
     }
@@ -108,14 +105,14 @@ public class Player : Entity
 
     void Shoot()
     {
-        Enemy target = SpatialGrid.Instance.GetClosestEnemyInGrid(transform.position);
+        Enemy lTarget = SpatialGrid.Instance.GetClosestEnemyInGrid(transform.position);
 
-        if (target == null) return;
+        if (lTarget == null) return;
 
-        Vector3 direction = (target.transform.position - transform.position).normalized;
+        Vector3 lDirection = (lTarget.transform.position - transform.position).normalized;
 
-        Projectile proj = ProjectilePool.Instance.GetProjectile();
-        proj.transform.position = transform.position;
-        proj.Init(direction, Damage);
+        Projectile lProjectile = ProjectilePool.Instance.GetProjectile();
+        lProjectile.transform.position = transform.position;
+        lProjectile.Init(lDirection, Damage);
     }
 }

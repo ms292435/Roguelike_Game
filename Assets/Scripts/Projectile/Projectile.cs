@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections.Generic;
 
 public class Projectile : MonoBehaviour
 {
@@ -15,8 +14,8 @@ public class Projectile : MonoBehaviour
         mDamage = pDamage;
 
         // Rotation du sprite
-        float angle = Mathf.Atan2(mDirection.y, mDirection.x) * Mathf.Rad2Deg;
-        transform.rotation = Quaternion.Euler(0, 0, angle);
+        float lAngle = Mathf.Atan2(mDirection.y, mDirection.x) * Mathf.Rad2Deg;
+        transform.rotation = Quaternion.Euler(0, 0, lAngle);
     }
 
     void Update()
@@ -33,18 +32,22 @@ public class Projectile : MonoBehaviour
     void CheckCollision()
     {
         // 1. On récupère l'UNIQUE ennemi le plus proche via la grille
-        Enemy closestEnemy = SpatialGrid.Instance.GetClosestEnemyInGrid(transform.position);
+        Enemy lClosestEnemy = SpatialGrid.Instance.GetClosestEnemyInGrid(transform.position);
 
         // 2. Si aucun ennemi n'est dans le secteur, on arrête
-        if (closestEnemy == null) return;
+        if (lClosestEnemy == null) return;
 
         // 3. Test de distance (Optimisé avec sqrMagnitude pour éviter la racine carrée)
-        float sqrDist = (transform.position - closestEnemy.transform.position).sqrMagnitude;
+        float lSqrDist = (transform.position - lClosestEnemy.transform.position).sqrMagnitude;
 
         // On compare avec le rayon de collision au carré
-        if (sqrDist < mHitRadius * mHitRadius)
+        if (lSqrDist < mHitRadius * mHitRadius)
         {
-            closestEnemy.TakeDamage(mDamage);
+            lClosestEnemy.TakeDamage(mDamage);
+        }
+
+        if ( transform.position.magnitude > 20f) // Si le projectile sort d'une zone raisonnable, on le retourne au pool
+        {
             ReturnToPool();
         }
     }

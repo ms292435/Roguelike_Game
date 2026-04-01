@@ -27,10 +27,9 @@ public class EnemyPool : MonoBehaviour
     {
         for (int i = 0; i < EnemyPoolCount; i++)
         {
-            Enemy enemy = Instantiate(mEnemyPrefab).GetComponent<Enemy>();
-            enemy.gameObject.SetActive(false);
-            // On remplit la Stack dès le début !
-            mInactives.Push(enemy);
+            Enemy lEnemy = Instantiate(mEnemyPrefab).GetComponent<Enemy>();
+            lEnemy.gameObject.SetActive(false);
+            mInactives.Push(lEnemy);
         }
     }
 
@@ -38,13 +37,11 @@ public class EnemyPool : MonoBehaviour
     {
         if (mInactives.Count > 0)
         {
-            Enemy e = mInactives.Pop();
-            e.gameObject.SetActive(true);
-            mActiveEnemiesList.Add(e); // Suivi des actifs
-            return e;
+            Enemy lEnemy = mInactives.Pop();
+            lEnemy.gameObject.SetActive(true);
+            mActiveEnemiesList.Add(lEnemy); 
+            return lEnemy;
         }
-
-        // Optionnel : Créer un nouvel ennemi si le pool est vide
         Debug.LogWarning("Pool d'ennemis vide !");
         return null;
     }
@@ -65,18 +62,18 @@ public class EnemyPool : MonoBehaviour
     // mais gardons-la au cas où pour du debug.
     public Enemy GetClosestEnemy(Vector3 pPosition)
     {
-        Enemy closest = null;
-        float minDistSq = Mathf.Infinity;
+        Enemy lClosest = null;
+        float lMinDistSq = Mathf.Infinity;
 
         for (int i = 0; i < mActiveEnemiesList.Count; i++)
         {
-            float distSq = (pPosition - mActiveEnemiesList[i].transform.position).sqrMagnitude;
-            if (distSq < minDistSq)
+            float lDistSq = (pPosition - mActiveEnemiesList[i].transform.position).sqrMagnitude;
+            if (lDistSq < lMinDistSq)
             {
-                minDistSq = distSq;
-                closest = mActiveEnemiesList[i];
+                lMinDistSq = lDistSq;
+                lClosest = mActiveEnemiesList[i];
             }
         }
-        return closest;
+        return lClosest;
     }
 }

@@ -4,10 +4,10 @@ using UnityEngine;
 public class SpatialGrid : MonoBehaviour
 {
 
-    public float cellSize = 16f; // Taille d'une case (ajuste selon la taille de tes sprites)
+    public float mCellSize = 4f; // Taille d'une case (ajuste selon la taille de tes sprites)
 
-    // Dictionnaire associant une position de case (Vector2Int) à une liste d'ennemis
-    private Dictionary<Vector2Int, List<Enemy>> grid = new Dictionary<Vector2Int, List<Enemy>>();
+    // Dictionnaire associant une pPosition de case (Vector2Int) à une liste d'ennemis
+    private Dictionary<Vector2Int, HashSet<Enemy>> mGrid = new Dictionary<Vector2Int, HashSet<Enemy>>();
 
     public static SpatialGrid Instance { get; private set; }
 
@@ -22,83 +22,100 @@ public class SpatialGrid : MonoBehaviour
     }
 
     // Convertit une position du monde en coordonnées de grille
-    public Vector2Int GetGridPos(Vector3 worldPos)
+    public Vector2Int GetGridPos(Vector3 pWorldPos)
     {
         return new Vector2Int(
-            Mathf.FloorToInt(worldPos.x / cellSize),
-            Mathf.FloorToInt(worldPos.y / cellSize)
+            Mathf.FloorToInt(pWorldPos.x / mCellSize),
+            Mathf.FloorToInt(pWorldPos.y / mCellSize)
         );
     }
 
-    public void UpdateEnemyPosition(Enemy enemy, Vector3 oldPos, Vector3 newPos)
+    public void UpdateEnemyPosition(Enemy pEnemy, Vector3 pOldPos, Vector3 pNewPos)
     {
-        Vector2Int oldGridPos = GetGridPos(oldPos);
-        Vector2Int newGridPos = GetGridPos(newPos);
+        Vector2Int lOldGridPos = GetGridPos(pOldPos);
+        Vector2Int lNewGridPos = GetGridPos(pNewPos);
 
-        if (oldGridPos != newGridPos)
+        if (lOldGridPos != lNewGridPos)
         {
-            RemoveEnemy(enemy, oldGridPos);
-            AddEnemy(enemy, newGridPos);
+            RemoveEnemy(pEnemy, lOldGridPos);
+            AddEnemy(pEnemy, lNewGridPos);
         }
     }
 
-    public void AddEnemy(Enemy enemy, Vector2Int gridPos)
+    public void AddEnemy(Enemy pEnemy, Vector2Int pGridPos)
     {
-        if (!grid.ContainsKey(gridPos))
-            grid[gridPos] = new List<Enemy>();
+        if (!mGrid.ContainsKey(pGridPos))
+            mGrid[pGridPos] = new HashSet<Enemy>();
 
-        grid[gridPos].Add(enemy);
+        mGrid[pGridPos].Add(pEnemy);
     }
 
-    public void RemoveEnemy(Enemy enemy, Vector2Int gridPos)
+    public void RemoveEnemy(Enemy pEnemy, Vector2Int pGridPos)
     {
-        if (grid.ContainsKey(gridPos))
+        if (mGrid.TryGetValue(pGridPos, out HashSet<Enemy> lCell))
         {
-            grid[gridPos].Remove(enemy);
+            lCell.Remove(pEnemy);
+
+            if (lCell.Count == 0)
+            {
+                mGrid.Remove(pGridPos);
+            }
         }
     }
 
     // Récupère les ennemis dans la case actuelle et les 8 cases adjacentes
-    public Enemy GetClosestEnemyInGrid(Vector3 position, float maxCellRadius = 5)
+    public Enemy GetClosestEnemyInGrid(Vector3 pPosition, float pMaxCellRadius = 5)
     {
-        Vector2Int centerCell = GetGridPos(position);
-        Enemy closest = null;
-        float minDist = Mathf.Infinity;
+        Vector2Int lCenterCell = GetGridPos(pPosition);
+        Enemy lClosest = null;
+        float lMinDistSqr = Mathf.Infinity;
 
-        // On cherche par couches (0 = cellule actuelle, 1 = les 8 autour, etc.)
-        for (int layer = 0; layer <= maxCellRadius; layer++)
+        for (int lLayer = 0; lLayer <= pMaxCellRadius; lLayer++)
         {
-            bool foundInLayer = false;
+            bool lFoundSomethingInThisLayer = false;
 
-            for (int x = -layer; x <= layer; x++)
+            for (int x = -lLayer; x <= lLayer; x++)
             {
-                for (int y = -layer; y <= layer; y++)
+                for (int y = -lLayer; y <= lLayer; y++)
                 {
-                    // On ne vérifie que le périmètre de la couche actuelle
-                    if (Mathf.Abs(x) != layer && Mathf.Abs(y) != layer) continue;
+                    if (lLayer > 0 && Mathf.Abs(x) != lLayer && Mathf.Abs(y) != lLayer) continue;
 
-                    Vector2Int cell = centerCell + new Vector2Int(x, y);
-                    if (grid.ContainsKey(cell))
+                    Vector2Int lCell = lCenterCell + new Vector2Int(x, y);
+                    if (mGrid.TryGetValue(lCell, out HashSet<Enemy> lEnemiesInCell))
                     {
-                        foreach (Enemy enemy in grid[cell])
+                        // Le foreach sur HashSet est efficace, mais attention aux allocations si appelé trop souvent
+                        foreach (Enemy lEnemy in lEnemiesInCell)
                         {
-                            float dist = Vector2.Distance(position, enemy.transform.position);
-                            if (dist < minDist)
+                            float lDistSqr = (pPosition - lEnemy.transform.position).sqrMagnitude;
+                            if (lDistSqr < lMinDistSqr)
                             {
-                                minDist = dist;
-                                closest = enemy;
-                                foundInLayer = true;
+                                lMinDistSqr = lDistSqr;
+                                lClosest = lEnemy;
+                                lFoundSomethingInThisLayer = true;
                             }
                         }
                     }
                 }
             }
 
-            // Si on a trouvé un ennemi dans cette couche, on peut s'arrêter 
-            // (car les couches suivantes sont forcément plus loin)
-            if (foundInLayer) return closest;
+            if (lFoundSomethingInThisLayer)
+            {
+                float lDistanceToNextLayer = (lLayer + 1) * mCellSize;
+                if (lMinDistSqr < lDistanceToNextLayer * lDistanceToNextLayer)
+                {
+                    return lClosest;
+                }
+            }
         }
+        return lClosest;
+    }
 
+    public HashSet<Enemy> GetEnemiesInCell(Vector2Int pCellPos)
+    {
+        if (mGrid.TryGetValue(pCellPos, out HashSet<Enemy> lEnemies))
+        {
+            return lEnemies;
+        }
         return null;
     }
 }

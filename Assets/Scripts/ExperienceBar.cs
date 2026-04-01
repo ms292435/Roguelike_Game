@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 public class ExperienceBar : MonoBehaviour
 {
-    public Image xpFill;
+    public Image mXpFill;
 
     public float mCurrentXP = 0;    
     public float mMaxXP = 100;
@@ -28,7 +28,7 @@ public class ExperienceBar : MonoBehaviour
 
     void UpdateExperiencePBar()
     {
-        xpFill.fillAmount = mCurrentXP / mMaxXP;
+        mXpFill.fillAmount = mCurrentXP / mMaxXP;
     }
 
     void LevelUp()

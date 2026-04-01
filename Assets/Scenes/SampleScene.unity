@@ -196,7 +196,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51c0277126c9efc41aef789b5c819e68, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cellSize: 16
+  mCellSize: 4
 --- !u!4 &191348798
 Transform:
   m_ObjectHideFlags: 0
@@ -512,7 +512,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 11.639249
+  orthographic size: 8
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -669,7 +669,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7c8bd7d7349a76948a8d1a72b01fa024, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  xpFill: {fileID: 654817036}
+  mXpFill: {fileID: 654817036}
   mCurrentXP: 0
   mMaxXP: 100
 --- !u!114 &654817036
@@ -744,7 +744,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mExperienceList: []
   mExperienceBar: {fileID: 654817035}
-  mFireRate: 10
+  mFireRate: 1
   mAttractRadius: 6
   mCollectRadius: 1
 --- !u!4 &696027932
@@ -1427,8 +1427,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mTarget: {fileID: 696027932}
-  mSpatialGrid: {fileID: 0}
-  mSpawnInterval: 0.5
+  mSpawnInterval: 0.02
   mEnemyPerTick: 20
 --- !u!4 &1313077602
 Transform:
@@ -1519,8 +1518,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mEnemyPrefab: {fileID: 132872623360505547, guid: cc540824d722b9d46ba10d3acf8b7bf9, type: 3}
-  EnemyPoolCount: 1000
-  mListEnemyPool: []
+  EnemyPoolCount: 500
   mActiveEnemiesList: []
 --- !u!4 &1827546791
 Transform:

@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -23,15 +22,14 @@ public class ExperiencePool : MonoBehaviour
         Instance = this;
     }
 
-    // Start is called before the first frame update
     void Start()
     {
         for (int i = 0; i < ExperiencePoolCount; i++)
         {
-            Experience exp = Instantiate(mExperiencePrefab).GetComponent<Experience>();
-            exp.Init();
-            exp.gameObject.SetActive(false);
-            mListExperiencePool.Enqueue(exp);
+            Experience lExperience = Instantiate(mExperiencePrefab).GetComponent<Experience>();
+            lExperience.Init();
+            lExperience.gameObject.SetActive(false);
+            mListExperiencePool.Enqueue(lExperience);
             mTotalCreated++;
         }
 
@@ -41,19 +39,19 @@ public class ExperiencePool : MonoBehaviour
     {
         if (mListExperiencePool.Count > 0)
         {
-            Experience exp = mListExperiencePool.Dequeue();
-            exp.gameObject.SetActive(true);
-            return exp;
+            Experience lExperience = mListExperiencePool.Dequeue();
+            lExperience.gameObject.SetActive(true);
+            return lExperience;
         }
 
 
         if (mTotalCreated < mMaxActiveExperience)
         {
-            Experience newExp = Instantiate(mExperiencePrefab).GetComponent<Experience>();
-            newExp.Init();
+            Experience lNewExperience = Instantiate(mExperiencePrefab).GetComponent<Experience>();
+            lNewExperience.Init();
 
             mTotalCreated++; 
-            return newExp;
+            return lNewExperience;
         }
 
         return null;
@@ -70,9 +68,9 @@ public class ExperiencePool : MonoBehaviour
         return lCount;
     }
 
-    public void ReturnExperience(Experience exp)
+    public void ReturnExperience(Experience pExperience)
     {
-        exp.gameObject.SetActive(false);
-        mListExperiencePool.Enqueue(exp);
+        pExperience.gameObject.SetActive(false);
+        mListExperiencePool.Enqueue(pExperience);
     }
 }

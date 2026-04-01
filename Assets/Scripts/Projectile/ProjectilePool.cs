@@ -24,31 +24,32 @@ public class ProjectilePool : MonoBehaviour
     {
         for (int i = 0; i < mPoolSize; i++)
         {
-            Projectile proj = Instantiate(mProjectilePrefab).GetComponent<Projectile>();
-            proj.gameObject.SetActive(false);
-            mPool.Add(proj);
+            Projectile lProjectile = Instantiate(mProjectilePrefab).GetComponent<Projectile>();
+            lProjectile.gameObject.SetActive(false);
+            mPool.Add(lProjectile);
+
         }
     }
 
     public Projectile GetProjectile()
     {
-        foreach (Projectile proj in mPool)
+        foreach (Projectile lProjectile in mPool)
         {
-            if (!proj.gameObject.activeInHierarchy)
+            if (!lProjectile.gameObject.activeInHierarchy)
             {
-                proj.gameObject.SetActive(true);
-                return proj;
+                lProjectile.gameObject.SetActive(true);
+                return lProjectile;
             }
         }
 
         // optionnel : expand pool si plein
-        Projectile newProj = Instantiate(mProjectilePrefab).GetComponent<Projectile>();
-        mPool.Add(newProj);
-        return newProj;
+        Projectile lNewProjectile = Instantiate(mProjectilePrefab).GetComponent<Projectile>();
+        mPool.Add(lNewProjectile);
+        return lNewProjectile;
     }
 
-    public void ReturnProjectile(Projectile proj)
+    public void ReturnProjectile(Projectile pProjectile)
     {
-        proj.gameObject.SetActive(false);
+        pProjectile.gameObject.SetActive(false);
     }
 }
