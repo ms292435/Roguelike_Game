@@ -26,10 +26,6 @@ public class Player : Entity
             return;
         }
         Instance = this;
-    }
-
-    private Player()
-    {
         Health = 100f;
         Damage = 50f;
         Speed = 4f;
@@ -59,22 +55,18 @@ public class Player : Entity
         float lSqrAttract = mAttractRadius * mAttractRadius;
         float lSqrCollect = mCollectRadius * mCollectRadius;
 
-        // On boucle à l'envers car on va potentiellement retirer des éléments (Collect)
         for (int i = mExperienceList.Count - 1; i >= 0; i--)
         {
             Experience lExperience = mExperienceList[i];
 
-            // Calcul de distance au carré (plus performant)
             Vector3 lOffset = lPlayerPos - lExperience.transform.position;
             float lSqrDist = lOffset.sqrMagnitude;
 
-            // 1. Détection (Trigger)
             if (!lExperience.IsTrigger && lSqrDist < lSqrAttract)
             {
                 lExperience.Trigger();
             }
 
-            // 2. Mouvement (si trigger)
             if (lExperience.IsTrigger)
             {
                 lExperience.transform.position = Vector3.MoveTowards(
@@ -84,7 +76,6 @@ public class Player : Entity
                 );
             }
 
-            // 3. Collecte
             if (lSqrDist < lSqrCollect)
             {
                 lExperience.Collect(mExperienceBar);

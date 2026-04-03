@@ -4,9 +4,8 @@ using UnityEngine;
 public class SpatialGrid : MonoBehaviour
 {
 
-    public float mCellSize = 4f; // Taille d'une case (ajuste selon la taille de tes sprites)
+    public float mCellSize = 4f; 
 
-    // Dictionnaire associant une pPosition de case (Vector2Int) à une liste d'ennemis
     private Dictionary<Vector2Int, HashSet<Enemy>> mGrid = new Dictionary<Vector2Int, HashSet<Enemy>>();
 
     public static SpatialGrid Instance { get; private set; }
@@ -21,7 +20,6 @@ public class SpatialGrid : MonoBehaviour
         Instance = this;
     }
 
-    // Convertit une position du monde en coordonnées de grille
     public Vector2Int GetGridPos(Vector3 pWorldPos)
     {
         return new Vector2Int(
@@ -63,7 +61,6 @@ public class SpatialGrid : MonoBehaviour
         }
     }
 
-    // Récupère les ennemis dans la case actuelle et les 8 cases adjacentes
     public Enemy GetClosestEnemyInGrid(Vector3 pPosition, float pMaxCellRadius = 5)
     {
         Vector2Int lCenterCell = GetGridPos(pPosition);
@@ -83,7 +80,6 @@ public class SpatialGrid : MonoBehaviour
                     Vector2Int lCell = lCenterCell + new Vector2Int(x, y);
                     if (mGrid.TryGetValue(lCell, out HashSet<Enemy> lEnemiesInCell))
                     {
-                        // Le foreach sur HashSet est efficace, mais attention aux allocations si appelé trop souvent
                         foreach (Enemy lEnemy in lEnemiesInCell)
                         {
                             float lDistSqr = (pPosition - lEnemy.transform.position).sqrMagnitude;
@@ -110,9 +106,9 @@ public class SpatialGrid : MonoBehaviour
         return lClosest;
     }
 
-    public HashSet<Enemy> GetEnemiesInCell(Vector2Int pCellPos)
+    public HashSet<Enemy> GetEnemiesInCell(int pX, int pY)
     {
-        if (mGrid.TryGetValue(pCellPos, out HashSet<Enemy> lEnemies))
+        if (mGrid.TryGetValue(new Vector2Int(pX, pY), out HashSet<Enemy> lEnemies))
         {
             return lEnemies;
         }

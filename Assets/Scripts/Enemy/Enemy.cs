@@ -13,7 +13,7 @@ public class Enemy : Entity
     private float mTiltSpeed = 5f;    // La vitesse du balancement
 
     private float mSeparationRadius = 1f; // Distance à laquelle ils commencent à se pousser
-    private float mSeparationStrength = 5f; // Force de la poussée
+    private float mSeparationStrength = 10f; // Force de la poussée
 
     // Cache pour éviter de recalculer des propriétés répétitives
     private static int mGlobalUpdateIndex = 0;
@@ -76,41 +76,41 @@ public class Enemy : Entity
 
     private void HandleSeparation()
     {
-        Vector2Int lGridPosition = SpatialGrid.Instance.GetGridPos(transform.position);
+        Vector3 lPosition = transform.position;
+        SpatialGrid lGrid = SpatialGrid.Instance;
+        Vector2Int lGridPosition = lGrid.GetGridPos(lPosition);
+
         Vector3 lSeparationForce = Vector3.zero;
-        float lSqrmSeparationRadius = mSeparationRadius * mSeparationRadius;
+        float lSqrSeparationRadius = mSeparationRadius * mSeparationRadius;
+
+        int lGx = lGridPosition.x;
+        int lGy = lGridPosition.y;
 
         for (int x = -1; x <= 1; x++)
         {
             for (int y = -1; y <= 1; y++)
             {
-                Vector2Int lNeighborCell = new Vector2Int(lGridPosition.x + x, lGridPosition.y + y);
-                // On récupère le HashSet via la nouvelle méthode de SpatialGrid
-                HashSet<Enemy> lNeighbors = SpatialGrid.Instance.GetEnemiesInCell(lNeighborCell);
+                HashSet<Enemy> lNeighbors = lGrid.GetEnemiesInCell(lGx + x, lGy + y);
 
                 if (lNeighbors == null) continue;
 
-                // Obligé d'utiliser foreach avec un HashSet
                 foreach (Enemy lOther in lNeighbors)
                 {
                     if (lOther == this) continue;
 
-                    Vector3 lDiff = transform.position - lOther.transform.position;
+                    Vector3 lDiff = lPosition - lOther.transform.position;
                     float lSqrDist = lDiff.sqrMagnitude;
 
-                    // Optimisation : On compare les carrés pour éviter le Mathf.Sqrt
-                    if (lSqrDist < lSqrmSeparationRadius && lSqrDist > 0.0001f)
+                    if (lSqrDist < lSqrSeparationRadius && lSqrDist > 0.0001f)
                     {
-                        // On normalise manuellement de façon optimisée
-                        // La force est inversement proportionnelle à la distance
                         float lDist = Mathf.Sqrt(lSqrDist);
                         lSeparationForce += (lDiff / lDist) * (mSeparationRadius - lDist);
                     }
                 }
             }
         }
-        // Application de la force (x4 car exécuté 1 frame sur 4)
-        transform.position += lSeparationForce * (mSeparationStrength * 4f) * Time.deltaTime;
+
+        transform.position = lPosition + lSeparationForce * (mSeparationStrength * 4f) * Time.deltaTime;
     }
 
     public void Update()
@@ -120,15 +120,14 @@ public class Enemy : Entity
         Vector3 lDirection = (mTarget.position - transform.position).normalized;
         transform.position += lDirection * Speed * Time.deltaTime;
 
+        SpatialGrid.Instance.UpdateEnemyPosition(this, mLastPos, transform.position);
+        mLastPos = transform.position;
+
         if ((Time.frameCount + mInstanceUpdateOrder) % 4 == 0)
         {
             HandleSeparation();
         }
-        // Mise à jour dans la grille
-        SpatialGrid.Instance.UpdateEnemyPosition(this, mLastPos, transform.position);
-        mLastPos = transform.position;
-
-        // Animation de marche 
+        
         float lTilt = Mathf.Sin((Time.time + mAnimationOffset) * mTiltSpeed) * mTiltAngle;
         transform.rotation = Quaternion.Euler(0, 0, lTilt);
 

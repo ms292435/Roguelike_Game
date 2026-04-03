@@ -8,6 +8,7 @@ public class ExperienceBar : MonoBehaviour
     public float mCurrentXP = 0;    
     public float mMaxXP = 100;
 
+    public static ExperienceBar Instance { get; private set; }
     private void Start()
     {
         UpdateExperiencePBar();
@@ -35,6 +36,7 @@ public class ExperienceBar : MonoBehaviour
     {
         mMaxXP *= 1.5f;
         mMaxXP = Mathf.Round(mMaxXP);
+        LevelUpManager.Instance.OnLevelUp();
     }
 
     private void OnGUI()
@@ -43,7 +45,7 @@ public class ExperienceBar : MonoBehaviour
 
         int lWidth = Screen.width, lHeight = Screen.height;
 
-        Rect lRect = new Rect(0, lHeight - 40, lWidth, 30);
+        Rect lRect = new Rect(0, lHeight - 50, lWidth, 30);
         lStyle.alignment = TextAnchor.MiddleCenter;
         lStyle.fontSize = lHeight * 2 / 100;
         lStyle.normal.textColor = Color.white;
