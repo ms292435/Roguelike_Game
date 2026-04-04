@@ -115,18 +115,6 @@ public class SpatialGrid : MonoBehaviour
         return null;
     }
 
-    public void UpdateExperiencePosition(Experience pExp, Vector3 pOldPos, Vector3 pNewPos)
-    {
-        Vector2Int lOldGridPos = GetGridPos(pOldPos);
-        Vector2Int lNewGridPos = GetGridPos(pNewPos);
-        if (lOldGridPos != lNewGridPos)
-        {
-            RemoveExperience(pExp, lOldGridPos);
-            AddExperience(pExp, lNewGridPos);
-        }
-    }
-
-    // 2. Ajoute les méthodes pour gérer l'expérience (copie de AddEnemy/RemoveEnemy)
     public void AddExperience(Experience pExp, Vector2Int pGridPos)
     {
         if (!mExperienceGrid.ContainsKey(pGridPos)) mExperienceGrid[pGridPos] = new HashSet<Experience>();
@@ -141,7 +129,6 @@ public class SpatialGrid : MonoBehaviour
         }
     }
 
-    // 3. Correction de GetNearbyExperience (pour qu'elle renvoie une LISTE et pas une seule gemme)
     public void GetNearbyExperienceNonAlloc(Vector3 pPos, float pRadius, List<Experience> pResultList)
     {
         pResultList.Clear();

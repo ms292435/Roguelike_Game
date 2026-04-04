@@ -54,8 +54,6 @@ public class Experience : MonoBehaviour
             pExperienceBar.AddExperience(mValue);
         }
 
-        // On ne retire de la grille QUE si elle n'était pas déjà en train de voler
-        // car si mIsTrigger est vrai, elle a déjà été retirée de la grille
         if (!mIsTrigger && SpatialGrid.Instance != null)
         {
             SpatialGrid.Instance.RemoveExperience(this, SpatialGrid.Instance.GetGridPos(mCurrentPosition));
