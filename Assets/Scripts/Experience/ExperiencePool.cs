@@ -27,7 +27,6 @@ public class ExperiencePool : MonoBehaviour
         for (int i = 0; i < ExperiencePoolCount; i++)
         {
             Experience lExperience = Instantiate(mExperiencePrefab).GetComponent<Experience>();
-            lExperience.Init();
             lExperience.gameObject.SetActive(false);
             mListExperiencePool.Enqueue(lExperience);
             mTotalCreated++;
@@ -48,8 +47,6 @@ public class ExperiencePool : MonoBehaviour
         if (mTotalCreated < mMaxActiveExperience)
         {
             Experience lNewExperience = Instantiate(mExperiencePrefab).GetComponent<Experience>();
-            lNewExperience.Init();
-
             mTotalCreated++; 
             return lNewExperience;
         }

@@ -5,8 +5,8 @@ public class ExperienceBar : MonoBehaviour
 {
     public Image mXpFill;
 
-    public float mCurrentXP = 0;    
-    public float mMaxXP = 100;
+    private float mCurrentXP = 0;    
+    private float mMaxXP = 1;
 
     public static ExperienceBar Instance { get; private set; }
     private void Start()

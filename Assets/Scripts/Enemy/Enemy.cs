@@ -1,3 +1,4 @@
+using Cinemachine;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,34 +9,60 @@ public class Enemy : Entity
     private Vector3 mLastPos;
     private bool mIsDead = false;
 
-    private float mAnimationOffset; // Pour désynchroniser les ennemis
-    private float mTiltAngle = 5f;    // L'angle max du balancement
-    private float mTiltSpeed = 5f;    // La vitesse du balancement
+    private float mAnimationOffset; // Desync ennemies
+    private float mTiltAngle = 5f;    // Max angle of the tilt
+    private float mTiltSpeed = 5f;    // Tilt speed
 
-    private float mSeparationRadius = 1f; // Distance à laquelle ils commencent à se pousser
-    private float mSeparationStrength = 10f; // Force de la poussée
+    private float mSeparationRadius = 1f; // Min distance to maintain from other enemies
+    private float mSeparationStrength = 10f; // Push strength to maintain separation
 
-    // Cache pour éviter de recalculer des propriétés répétitives
     private static int mGlobalUpdateIndex = 0;
     private int mInstanceUpdateOrder;
+
+    public Vector3 mCurrentPosition;
+    private Vector3 mTargetPosition; 
     public void Init(Transform pTarget)
     {
         mTarget = pTarget;
-
         Health = 50f;
         Speed = 0.7f;
 
-        float lRadius = 20f;
-        float lAngle = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        Camera lCam = Camera.main;
+        float lHeight = lCam.orthographicSize;
+        float lWidth = lHeight * lCam.aspect;
 
-        Vector3 lSpawnPos = mTarget.position + new Vector3(Mathf.Cos(lAngle), Mathf.Sin(lAngle), 0f) * lRadius;
+        float lMargin = 2f;
+        float lSpawnX, lSpawnY;
 
-        transform.position = lSpawnPos;
+        int lSide = UnityEngine.Random.Range(0, 4);
+
+        switch (lSide)
+        {
+            case 0:
+                lSpawnX = UnityEngine.Random.Range(-lWidth, lWidth);
+                lSpawnY = lHeight + lMargin;
+                break;
+            case 1:
+                lSpawnX = UnityEngine.Random.Range(-lWidth, lWidth);
+                lSpawnY = -lHeight - lMargin;
+                break;
+            case 2:
+                lSpawnX = -lWidth - lMargin;
+                lSpawnY = UnityEngine.Random.Range(-lHeight, lHeight);
+                break;
+            default:
+                lSpawnX = lWidth + lMargin;
+                lSpawnY = UnityEngine.Random.Range(-lHeight, lHeight);
+                break;
+        }
+
+        Vector3 lRelativePos = new Vector3(lSpawnX, lSpawnY, 0);
+        transform.position = lCam.transform.position + lRelativePos;
+        transform.position = new Vector3(transform.position.x, transform.position.y, 0f); 
 
         mLastPos = transform.position;
         SpatialGrid.Instance.AddEnemy(this, SpatialGrid.Instance.GetGridPos(mLastPos));
-
-        mAnimationOffset = UnityEngine.Random.Range(0f, 10f);
+        mAnimationOffset = Random.Range(0f, 10f);
     }
 
     public void OnEnable()
@@ -70,15 +97,15 @@ public class Enemy : Entity
         Experience lExperience = ExperiencePool.Instance.GetExperience();
         if (lExperience != null)
         {
-            lExperience.transform.position = transform.position;
+            lExperience.transform.position = this.transform.position;
+            lExperience.Init();
         }
     }
 
     private void HandleSeparation()
     {
-        Vector3 lPosition = transform.position;
         SpatialGrid lGrid = SpatialGrid.Instance;
-        Vector2Int lGridPosition = lGrid.GetGridPos(lPosition);
+        Vector2Int lGridPosition = lGrid.GetGridPos(mCurrentPosition);
 
         Vector3 lSeparationForce = Vector3.zero;
         float lSqrSeparationRadius = mSeparationRadius * mSeparationRadius;
@@ -98,40 +125,45 @@ public class Enemy : Entity
                 {
                     if (lOther == this) continue;
 
-                    Vector3 lDiff = lPosition - lOther.transform.position;
+                    Vector3 lDiff = mCurrentPosition - lOther.mCurrentPosition;
                     float lSqrDist = lDiff.sqrMagnitude;
 
                     if (lSqrDist < lSqrSeparationRadius && lSqrDist > 0.0001f)
                     {
-                        float lDist = Mathf.Sqrt(lSqrDist);
-                        lSeparationForce += (lDiff / lDist) * (mSeparationRadius - lDist);
+                        float lForce = 1f - (lSqrDist / lSqrSeparationRadius);
+                        lSeparationForce += lDiff.normalized * lForce;
                     }
                 }
             }
         }
 
-        transform.position = lPosition + lSeparationForce * (mSeparationStrength * 4f) * Time.deltaTime;
+        mCurrentPosition += lSeparationForce * (mSeparationStrength * 4f) * Time.deltaTime;
     }
 
-    public void Update()
+    public void Tick()
     {
         if (mTarget == null) return;
 
-        Vector3 lDirection = (mTarget.position - transform.position).normalized;
-        transform.position += lDirection * Speed * Time.deltaTime;
+        mCurrentPosition = transform.position;
+        mTargetPosition = mTarget.position;
 
-        SpatialGrid.Instance.UpdateEnemyPosition(this, mLastPos, transform.position);
-        mLastPos = transform.position;
+        Vector3 lDirection = (mTargetPosition - mCurrentPosition).normalized;
+        mCurrentPosition += lDirection * Speed * Time.deltaTime;
+
+        SpatialGrid.Instance.UpdateEnemyPosition(this, mLastPos, mCurrentPosition);
+        mLastPos = mCurrentPosition;
 
         if ((Time.frameCount + mInstanceUpdateOrder) % 4 == 0)
         {
             HandleSeparation();
         }
-        
+
+        transform.position = mCurrentPosition;
+
         float lTilt = Mathf.Sin((Time.time + mAnimationOffset) * mTiltSpeed) * mTiltAngle;
         transform.rotation = Quaternion.Euler(0, 0, lTilt);
 
-        if (Vector3.Distance(transform.position, mTarget.position) < 0.5f)
+        if ((mCurrentPosition - mTargetPosition).sqrMagnitude < 0.25f) // 0.5f * 0.5f
         {
             Die();
         }

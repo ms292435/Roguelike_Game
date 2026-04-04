@@ -46,12 +46,26 @@ public class EnemyPool : MonoBehaviour
     public void ReturnEnemy(Enemy pEnemy)
     {
         pEnemy.gameObject.SetActive(false);
-        mActiveEnemiesList.Remove(pEnemy);
+        int lIndex = mActiveEnemiesList.IndexOf(pEnemy);
+        if (lIndex != -1)
+        {
+            int lastIndex = mActiveEnemiesList.Count - 1;
+            mActiveEnemiesList[lIndex] = mActiveEnemiesList[lastIndex];
+            mActiveEnemiesList.RemoveAt(lastIndex);
+        }
         mInactives.Push(pEnemy);
     }
 
     public int GetActiveEnemyCount()
     {
         return mActiveEnemiesList.Count;
+    }
+
+    public void Update()
+    {
+        for (int i = 0; i < mActiveEnemiesList.Count; i++)
+        {
+            mActiveEnemiesList[i].Tick();
+        }
     }
 }

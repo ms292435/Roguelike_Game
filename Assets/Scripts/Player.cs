@@ -1,9 +1,11 @@
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class Player : Entity
 {
-    public List<Experience> mExperienceList = new List<Experience>();
+    private List<Experience> mNearbyExpCache = new List<Experience>();
+    private List<Experience> mFlyingExperience = new List<Experience>();
     public ExperienceBar mExperienceBar;
 
     public float mFireRate = 1f;
@@ -42,7 +44,6 @@ public class Player : Entity
         float lMoveHorizontal = Input.GetAxis("Horizontal");
         float lMoveVertical = Input.GetAxis("Vertical");
 
-        mRigibody.freezeRotation = true;
         mRigibody.velocity = new Vector3(lMoveHorizontal, lMoveVertical) * Speed;
 
         HandleExperience();
@@ -55,30 +56,31 @@ public class Player : Entity
         float lSqrAttract = mAttractRadius * mAttractRadius;
         float lSqrCollect = mCollectRadius * mCollectRadius;
 
-        for (int i = mExperienceList.Count - 1; i >= 0; i--)
-        {
-            Experience lExperience = mExperienceList[i];
+        SpatialGrid.Instance.GetNearbyExperienceNonAlloc(lPlayerPos, mAttractRadius, mNearbyExpCache);
 
-            Vector3 lOffset = lPlayerPos - lExperience.transform.position;
+        for (int i = mNearbyExpCache.Count - 1; i >= 0; i--)
+        {
+            Experience lExperience = mNearbyExpCache[i];
+
+            Vector3 lOffset = lPlayerPos - lExperience.mCurrentPosition;
             float lSqrDist = lOffset.sqrMagnitude;
 
             if (!lExperience.IsTrigger && lSqrDist < lSqrAttract)
             {
                 lExperience.Trigger();
+                mFlyingExperience.Add(lExperience); 
             }
+        }
 
-            if (lExperience.IsTrigger)
-            {
-                lExperience.transform.position = Vector3.MoveTowards(
-                    lExperience.transform.position,
-                    lPlayerPos,
-                    lExperience.mSpeed * Time.deltaTime
-                );
-            }
+        for (int i = mFlyingExperience.Count - 1; i >= 0; i--)
+        {
+            Experience lExp = mFlyingExperience[i];
+            float lSqrDist = (lPlayerPos - lExp.mCurrentPosition).sqrMagnitude;
 
             if (lSqrDist < lSqrCollect)
             {
-                lExperience.Collect(mExperienceBar);
+                lExp.Collect(mExperienceBar);
+                mFlyingExperience.RemoveAt(i);
             }
         }
     }
@@ -96,14 +98,15 @@ public class Player : Entity
 
     void Shoot()
     {
-        Enemy lTarget = SpatialGrid.Instance.GetClosestEnemyInGrid(transform.position);
+        var lPlayerPosition = transform.position;
+        Enemy lTarget = SpatialGrid.Instance.GetClosestEnemyInGrid(lPlayerPosition);
 
         if (lTarget == null) return;
 
-        Vector3 lDirection = (lTarget.transform.position - transform.position).normalized;
+        Vector3 lDirection = (lTarget.transform.position - lPlayerPosition).normalized;
 
         Projectile lProjectile = ProjectilePool.Instance.GetProjectile();
-        lProjectile.transform.position = transform.position;
+        lProjectile.transform.position = lPlayerPosition;
         lProjectile.Init(lDirection, Damage);
     }
 }

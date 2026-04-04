@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 44aa8b2331a3ba049bb034d6980d40a9, type: 3}
   m_Name: DamageBoost
   m_EditorClassIdentifier: 
-  Name: Damage Upgrade
+  Name: Damage Up
   Icon: {fileID: 1648787396, guid: cea5c615bee92c249a08d243b161cef7, type: 3}
   Description: +25% Damage
   multiplier: 1.25

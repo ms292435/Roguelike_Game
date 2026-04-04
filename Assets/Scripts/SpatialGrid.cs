@@ -4,10 +4,10 @@ using UnityEngine;
 public class SpatialGrid : MonoBehaviour
 {
 
-    public float mCellSize = 4f; 
+    public float mCellSize = 4f;
 
     private Dictionary<Vector2Int, HashSet<Enemy>> mGrid = new Dictionary<Vector2Int, HashSet<Enemy>>();
-
+    private Dictionary<Vector2Int, HashSet<Experience>> mExperienceGrid = new Dictionary<Vector2Int, HashSet<Experience>>();
     public static SpatialGrid Instance { get; private set; }
 
     private void Awake()
@@ -82,7 +82,7 @@ public class SpatialGrid : MonoBehaviour
                     {
                         foreach (Enemy lEnemy in lEnemiesInCell)
                         {
-                            float lDistSqr = (pPosition - lEnemy.transform.position).sqrMagnitude;
+                            float lDistSqr = (pPosition - lEnemy.mCurrentPosition).sqrMagnitude;
                             if (lDistSqr < lMinDistSqr)
                             {
                                 lMinDistSqr = lDistSqr;
@@ -113,5 +113,58 @@ public class SpatialGrid : MonoBehaviour
             return lEnemies;
         }
         return null;
+    }
+
+    public void UpdateExperiencePosition(Experience pExp, Vector3 pOldPos, Vector3 pNewPos)
+    {
+        Vector2Int lOldGridPos = GetGridPos(pOldPos);
+        Vector2Int lNewGridPos = GetGridPos(pNewPos);
+        if (lOldGridPos != lNewGridPos)
+        {
+            RemoveExperience(pExp, lOldGridPos);
+            AddExperience(pExp, lNewGridPos);
+        }
+    }
+
+    // 2. Ajoute les méthodes pour gérer l'expérience (copie de AddEnemy/RemoveEnemy)
+    public void AddExperience(Experience pExp, Vector2Int pGridPos)
+    {
+        if (!mExperienceGrid.ContainsKey(pGridPos)) mExperienceGrid[pGridPos] = new HashSet<Experience>();
+        mExperienceGrid[pGridPos].Add(pExp);
+    }
+
+    public void RemoveExperience(Experience pExp, Vector2Int pGridPos)
+    {
+        if (mExperienceGrid.TryGetValue(pGridPos, out HashSet<Experience> lCell))
+        {
+            lCell.Remove(pExp);
+        }
+    }
+
+    // 3. Correction de GetNearbyExperience (pour qu'elle renvoie une LISTE et pas une seule gemme)
+    public void GetNearbyExperienceNonAlloc(Vector3 pPos, float pRadius, List<Experience> pResultList)
+    {
+        pResultList.Clear();
+        Vector2Int lCenterCell = GetGridPos(pPos);
+        float lSqrRadius = pRadius * pRadius;
+
+        int lCellRange = Mathf.CeilToInt(pRadius / mCellSize);
+
+        for (int x = -lCellRange; x <= lCellRange; x++)
+        {
+            for (int y = -lCellRange; y <= lCellRange; y++)
+            {
+                if (mExperienceGrid.TryGetValue(lCenterCell + new Vector2Int(x, y), out var lCell))
+                {
+                    foreach (var exp in lCell)
+                    {
+                        if ((pPos - exp.mCurrentPosition).sqrMagnitude < lSqrRadius)
+                        {
+                            pResultList.Add(exp);
+                        }
+                    }
+                }
+            }
+        }
     }
 }

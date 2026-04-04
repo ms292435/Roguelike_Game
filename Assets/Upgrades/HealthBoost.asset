@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 44aa8b2331a3ba049bb034d6980d40a9, type: 3}
   m_Name: HealthBoost
   m_EditorClassIdentifier: 
-  Name: Health Upgrade
+  Name: Health Up
   Icon: {fileID: -449346819, guid: cea5c615bee92c249a08d243b161cef7, type: 3}
   Description: +25% Health
   multiplier: 1.25
