@@ -1,28 +1,33 @@
 using UnityEngine;
 
-public class EnemySpawner : MonoBehaviour
+namespace Roguelike
 {
-    public Transform mTarget;
-    public float mSpawnInterval = 0.5f;
-    public float mEnemyPerTick = 1;
-    private float mtimer = 0f;
-
-    void Update()
+    public class EnemySpawner : MonoBehaviour
     {
-        mtimer += Time.deltaTime;
+        public Transform mTarget;
 
-        if (mtimer >= mSpawnInterval)
+        public float mSpawnInterval = 0.5f;
+        public float mEnemyPerTick = 1;
+
+        private float mtimer = 0f;
+
+        void Update()
         {
-            mtimer = 0f;
+            mtimer += Time.deltaTime;
 
-            for (int i = 0; i < mEnemyPerTick; i++)
+            if (mtimer >= mSpawnInterval)
             {
-                if (EnemyPool.Instance.GetActiveEnemyCount() < EnemyPool.Instance.EnemyPoolCount)
+                mtimer = 0f;
+
+                for (int i = 0; i < mEnemyPerTick; i++)
                 {
-                    Enemy lEnemy = EnemyPool.Instance.GetEnemy();
-                    if (lEnemy != null)
+                    if (EnemyPool.Instance.GetActiveEnemyCount() < EnemyPool.Instance.EnemyPoolCount)
                     {
-                        lEnemy.Init(mTarget);
+                        Enemy lEnemy = EnemyPool.Instance.GetEnemy();
+                        if (lEnemy != null)
+                        {
+                            lEnemy.Init(mTarget);
+                        }
                     }
                 }
             }

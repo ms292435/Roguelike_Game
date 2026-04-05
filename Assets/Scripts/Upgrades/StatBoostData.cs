@@ -1,11 +1,12 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu]
-public class StatBoostData : UpgradeData
+namespace Roguelike
 {
-    public float multiplier;
-    public string type;
-}
+    [CreateAssetMenu]
+    public class StatBoostData : UpgradeData
+    {
+        public float multiplier;
 
+        public string type;
+    }
+}

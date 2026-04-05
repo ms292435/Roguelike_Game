@@ -1,171 +1,182 @@
-using Cinemachine;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Enemy : Entity
+namespace Roguelike
 {
-    private Transform mTarget;
-
-    private Vector3 mLastPos;
-    private bool mIsDead = false;
-
-    private float mAnimationOffset; // Desync ennemies
-    private float mTiltAngle = 5f;    // Max angle of the tilt
-    private float mTiltSpeed = 5f;    // Tilt speed
-
-    private float mSeparationRadius = 1f; // Min distance to maintain from other enemies
-    private float mSeparationStrength = 10f; // Push strength to maintain separation
-
-    private static int mGlobalUpdateIndex = 0;
-    private int mInstanceUpdateOrder;
-
-    public Vector3 mCurrentPosition;
-    private Vector3 mTargetPosition; 
-    public void Init(Transform pTarget)
+    public class Enemy : Entity
     {
-        mTarget = pTarget;
-        Health = 50f;
-        Speed = 0.7f;
+        public Vector3 mCurrentPosition;
 
-        Camera lCam = Camera.main;
-        float lHeight = lCam.orthographicSize;
-        float lWidth = lHeight * lCam.aspect;
+        private Vector3 mLastPosition;
+        private Vector3 mSeparationForce;
 
-        float lMargin = 2f;
-        float lSpawnX, lSpawnY;
+        private Transform mTarget;
 
-        int lSide = UnityEngine.Random.Range(0, 4);
+        private bool mIsDead = false;
 
-        switch (lSide)
+        private float mAnimationOffset; // Desync ennemies
+        private readonly float mTiltAngle = 5f;    // Max angle of the tilt
+        private readonly float mTiltSpeed = 5f;    // Tilt speed
+
+        private readonly float mSeparationRadius = 1f; // Min distance to maintain from other enemies
+        private readonly float mSeparationStrength = 10f; // Push strength to maintain separation
+
+        private int mGlobalUpdateIndex = 0;
+        private int mInstanceUpdateOrder;
+
+        public void Init(Transform pTarget)
         {
-            case 0:
-                lSpawnX = UnityEngine.Random.Range(-lWidth, lWidth);
-                lSpawnY = lHeight + lMargin;
-                break;
-            case 1:
-                lSpawnX = UnityEngine.Random.Range(-lWidth, lWidth);
-                lSpawnY = -lHeight - lMargin;
-                break;
-            case 2:
-                lSpawnX = -lWidth - lMargin;
-                lSpawnY = UnityEngine.Random.Range(-lHeight, lHeight);
-                break;
-            default:
-                lSpawnX = lWidth + lMargin;
-                lSpawnY = UnityEngine.Random.Range(-lHeight, lHeight);
-                break;
-        }
+            mTarget = pTarget;
+            Health = 50f;
+            Speed = 0.7f;
 
-        Vector3 lRelativePos = new Vector3(lSpawnX, lSpawnY, 0);
-        transform.position = lCam.transform.position + lRelativePos;
-        transform.position = new Vector3(transform.position.x, transform.position.y, 0f); 
+            Camera lCam = Camera.main;
+            float lHeight = lCam.orthographicSize;
+            float lWidth = lHeight * lCam.aspect;
 
-        mLastPos = transform.position;
-        SpatialGrid.Instance.AddEnemy(this, SpatialGrid.Instance.GetGridPos(mLastPos));
-        mAnimationOffset = Random.Range(0f, 10f);
-    }
+            float lMargin = 2f;
+            float lSpawnX, lSpawnY;
 
-    public void OnEnable()
-    {
-        mIsDead = false;
-        mInstanceUpdateOrder = mGlobalUpdateIndex++;
-    }
-    public void TakeDamage(float pDamage)
-    {
-        Health -= pDamage;
+            int lSide = UnityEngine.Random.Range(0, 4);
 
-        if (Health <= 0)
-        {
-            Die();
-        }
-    }
-
-    public void Die()
-    {
-        if (mIsDead) return;
-        SpatialGrid.Instance.RemoveEnemy(this, SpatialGrid.Instance.GetGridPos(transform.position));
-        mIsDead = true;
-
-        SpawnExperience();
-        EnemyPool.Instance.ReturnEnemy(this);
-    }
-
-    void SpawnExperience()
-    {
-        if (ExperiencePool.Instance == null) return;
-
-        Experience lExperience = ExperiencePool.Instance.GetExperience();
-        if (lExperience != null)
-        {
-            lExperience.transform.position = this.transform.position;
-            lExperience.Init();
-        }
-    }
-
-    private void HandleSeparation()
-    {
-        SpatialGrid lGrid = SpatialGrid.Instance;
-        Vector2Int lGridPosition = lGrid.GetGridPos(mCurrentPosition);
-
-        Vector3 lSeparationForce = Vector3.zero;
-        float lSqrSeparationRadius = mSeparationRadius * mSeparationRadius;
-
-        int lGx = lGridPosition.x;
-        int lGy = lGridPosition.y;
-
-        for (int x = -1; x <= 1; x++)
-        {
-            for (int y = -1; y <= 1; y++)
+            switch (lSide)
             {
-                HashSet<Enemy> lNeighbors = lGrid.GetEnemiesInCell(lGx + x, lGy + y);
+                case 0: // UP 
+                    lSpawnX = UnityEngine.Random.Range(-lWidth, lWidth);
+                    lSpawnY = lHeight + lMargin;
+                    break;
+                case 1: // DOWN
+                    lSpawnX = UnityEngine.Random.Range(-lWidth, lWidth);
+                    lSpawnY = -lHeight - lMargin;
+                    break;
+                case 2: // LEFT
+                    lSpawnX = -lWidth - lMargin;
+                    lSpawnY = UnityEngine.Random.Range(-lHeight, lHeight);
+                    break;
+                default: // RIGHT
+                    lSpawnX = lWidth + lMargin;
+                    lSpawnY = UnityEngine.Random.Range(-lHeight, lHeight);
+                    break;
+            }
 
-                if (lNeighbors == null) continue;
+            Vector3 lRelativePos = new(lSpawnX, lSpawnY, 0);
+            transform.position = lCam.transform.position + lRelativePos;
+            transform.position = new Vector3(transform.position.x, transform.position.y, 0f);
 
-                foreach (Enemy lOther in lNeighbors)
+            mLastPosition = transform.position;
+            SpatialGrid.Instance.AddEnemy(this, SpatialGrid.Instance.GetGridPos(mLastPosition));
+            mAnimationOffset = Random.Range(0f, 10f);
+        }
+
+
+        public void TakeDamage(float pDamage)
+        {
+            Health -= pDamage;
+
+            if (Health <= 0)
+            {
+                Die();
+            }
+        }
+
+        public void Die()
+        {
+            if (mIsDead) return;
+            SpatialGrid.Instance.RemoveEnemy(this, SpatialGrid.Instance.GetGridPos(transform.position));
+            mIsDead = true;
+
+            SpawnExperience();
+            EnemyPool.Instance.ReturnEnemy(this);
+        }
+
+
+        public void Tick()
+        {
+            if (mTarget == null) return;
+
+            mCurrentPosition = transform.position;
+            var lTargetPosition = mTarget.position;
+
+            Vector3 lDirection = (lTargetPosition - mCurrentPosition).normalized;
+            mCurrentPosition += Speed * Time.deltaTime * lDirection;
+
+            SpatialGrid.Instance.UpdateEnemyPosition(this, mLastPosition, mCurrentPosition);
+            mLastPosition = mCurrentPosition;
+
+            if ((Time.frameCount + mInstanceUpdateOrder) % 4 == 0) // Spread separation calculations over 4 frames to reduce CPU load
+            {
+                HandleSeparation();
+            }
+
+            transform.position = mCurrentPosition;
+
+            float lTilt = Mathf.Sin((Time.time + mAnimationOffset) * mTiltSpeed) * mTiltAngle;
+            transform.rotation = Quaternion.Euler(0, 0, lTilt);
+
+            if ((mCurrentPosition - lTargetPosition).sqrMagnitude < 0.25f) // 0.5f * 0.5f
+            {
+                Die();
+            }
+        }
+
+        private void SpawnExperience()
+        {
+            if (ExperiencePool.Instance == null) return;
+
+            Experience lExperience = ExperiencePool.Instance.GetExperience();
+            if (lExperience != null)
+            {
+                lExperience.mCurrentPosition = mCurrentPosition;
+                lExperience.Init();
+            }
+        }
+
+        private void HandleSeparation()
+        {
+            SpatialGrid lGrid = SpatialGrid.Instance;
+            Vector2Int lGridPosition = lGrid.GetGridPos(mCurrentPosition);
+            mSeparationForce = Vector3.zero;
+
+            int lGx = lGridPosition.x;
+            int lGy = lGridPosition.y;
+
+            for (int x = -1; x <= 1; x++)
+            {
+                for (int y = -1; y <= 1; y++)
                 {
-                    if (lOther == this) continue;
+                    HashSet<Enemy> lNeighbors = lGrid.GetEnemiesInCell(lGx + x, lGy + y);
 
-                    Vector3 lDiff = mCurrentPosition - lOther.mCurrentPosition;
-                    float lSqrDist = lDiff.sqrMagnitude;
+                    if (lNeighbors == null) continue;
 
-                    if (lSqrDist < lSqrSeparationRadius && lSqrDist > 0.0001f)
-                    {
-                        float lForce = 1f - (lSqrDist / lSqrSeparationRadius);
-                        lSeparationForce += lDiff.normalized * lForce;
-                    }
+                    HandleNeighbors(lNeighbors);
+                }
+            }
+            mCurrentPosition += (mSeparationStrength * 4f) * Time.deltaTime * mSeparationForce;
+        }
+
+        private void HandleNeighbors(HashSet<Enemy> pNeighbors)
+        {
+            float lSqrSeparationRadius = mSeparationRadius * mSeparationRadius;
+
+            foreach (Enemy lOther in pNeighbors)
+            {
+                if (lOther == this) continue;
+
+                Vector3 lDiff = mCurrentPosition - lOther.mCurrentPosition;
+                float lSqrDist = lDiff.sqrMagnitude;
+
+                if (lSqrDist < lSqrSeparationRadius && lSqrDist > 0.0001f)
+                {
+                    float lForce = 1f - (lSqrDist / lSqrSeparationRadius);
+                    mSeparationForce += lDiff.normalized * lForce;
                 }
             }
         }
 
-        mCurrentPosition += lSeparationForce * (mSeparationStrength * 4f) * Time.deltaTime;
-    }
-
-    public void Tick()
-    {
-        if (mTarget == null) return;
-
-        mCurrentPosition = transform.position;
-        mTargetPosition = mTarget.position;
-
-        Vector3 lDirection = (mTargetPosition - mCurrentPosition).normalized;
-        mCurrentPosition += lDirection * Speed * Time.deltaTime;
-
-        SpatialGrid.Instance.UpdateEnemyPosition(this, mLastPos, mCurrentPosition);
-        mLastPos = mCurrentPosition;
-
-        if ((Time.frameCount + mInstanceUpdateOrder) % 4 == 0)
+        void OnEnable()
         {
-            HandleSeparation();
-        }
-
-        transform.position = mCurrentPosition;
-
-        float lTilt = Mathf.Sin((Time.time + mAnimationOffset) * mTiltSpeed) * mTiltAngle;
-        transform.rotation = Quaternion.Euler(0, 0, lTilt);
-
-        if ((mCurrentPosition - mTargetPosition).sqrMagnitude < 0.25f) // 0.5f * 0.5f
-        {
-            Die();
+            mIsDead = false;
+            mInstanceUpdateOrder = mGlobalUpdateIndex++;
         }
     }
 }

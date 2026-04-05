@@ -1,24 +1,11 @@
-public abstract class Entity : EntityBase
+namespace Roguelike
 {
-    private float mHealth;
-    private float mDamage;
-    private float mSpeed;
-
-    public float Health
+    public abstract class Entity : EntityBase
     {
-        get { return mHealth; }
-        set { mHealth = value; }
-    }
+        public float Health { get; set; }
 
-    public float Damage
-    {
-        get { return mDamage; }
-        set { mDamage = value; }
-    }
+        public float Damage { get; set; }
 
-    public float Speed
-    {
-        get { return mSpeed; }
-        set { mSpeed = value; }
+        public float Speed { get; set; }
     }
 }

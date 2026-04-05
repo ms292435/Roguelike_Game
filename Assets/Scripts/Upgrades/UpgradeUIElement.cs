@@ -2,27 +2,32 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class UpgradeUIElement : MonoBehaviour
+namespace Roguelike
 {
-    [SerializeField] private TextMeshProUGUI titleText;
-    [SerializeField] private TextMeshProUGUI descriptionText;
-    [SerializeField] private Image iconImage;
-
-    private UpgradeData assignedData;
-    private LevelUpManager manager;
-
-    public void Setup(UpgradeData data, LevelUpManager mgr)
+    public class UpgradeUIElement : MonoBehaviour
     {
-        assignedData = data;
-        manager = mgr;
+        [SerializeField] private TextMeshProUGUI mTitleText;
+        [SerializeField] private TextMeshProUGUI mDescriptionText;
 
-        titleText.text = data.Name;
-        descriptionText.text = data.Description;
-        iconImage.sprite = data.Icon;
-    }
+        [SerializeField] private Image mIconImage;
 
-    public void OnClickSelect()
-    {
-        manager.ApplyUpgrade(assignedData);
+        private UpgradeData mAssignedData;
+
+        private LevelUpManager mManager;
+
+        public void Setup(UpgradeData pData, LevelUpManager pManager)
+        {
+            mAssignedData = pData;
+            mManager = pManager;
+
+            mTitleText.text = pData.Name;
+            mDescriptionText.text = pData.Description;
+            mIconImage.sprite = pData.Icon;
+        }
+
+        public void OnClickSelect()
+        {
+            mManager.ApplyUpgrade(mAssignedData);
+        }
     }
 }

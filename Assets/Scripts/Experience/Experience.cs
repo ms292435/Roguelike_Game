@@ -1,72 +1,73 @@
-using System.Security.Cryptography;
 using UnityEngine;
 
-public class Experience : MonoBehaviour
+namespace Roguelike
 {
-    private Transform mPlayerTransform;
-    public bool mIsTrigger;
-    public float mValue = 1f;
-    public float mSpeed = 8f;
-    private Vector3 mLastPosition; 
-    public Vector3 mCurrentPosition;
-    public bool IsTrigger => mIsTrigger;
-
-    public void Init()
+    public class Experience : MonoBehaviour
     {
-        mIsTrigger = false;
-        mCurrentPosition = transform.position;
-        mLastPosition = mCurrentPosition;
+        public bool mIsTrigger;
 
-        if (SpatialGrid.Instance != null)
-        {
-            SpatialGrid.Instance.AddExperience(this, SpatialGrid.Instance.GetGridPos(mCurrentPosition));
-        }
-    }
+        public float mValue = 1f;
+        public float mSpeed = 8f;
 
-    private void Update()
-    {
-        if (mIsTrigger)
+        public Vector3 mCurrentPosition;
+        public bool IsTrigger => mIsTrigger;
+
+        private Vector3 mLastPosition;
+
+        public void Init()
         {
-            transform.position = Vector3.MoveTowards(
-                transform.position,
-                Player.Instance.transform.position,
-                mSpeed * Time.deltaTime
-            );
-            mCurrentPosition = transform.position;
+            mIsTrigger = false;
+            transform.position = mCurrentPosition;
             mLastPosition = mCurrentPosition;
-        }
-    }
-    public void SetTarget(Transform pPlayerTransform)
-    {
-        mPlayerTransform = pPlayerTransform;
-    }
 
-    public void Trigger()
-    {
-        mIsTrigger = true;
-        SpatialGrid.Instance.RemoveExperience(this, SpatialGrid.Instance.GetGridPos(mCurrentPosition));
-    }
-
-    public void Collect(ExperienceBar pExperienceBar)
-    {
-        if (pExperienceBar != null)
-        {
-            pExperienceBar.AddExperience(mValue);
+            if (SpatialGrid.Instance != null)
+            {
+                SpatialGrid.Instance.AddExperience(this, SpatialGrid.Instance.GetGridPos(mCurrentPosition));
+            }
         }
 
-        if (!mIsTrigger && SpatialGrid.Instance != null)
+
+        public void Trigger()
         {
+            mIsTrigger = true;
             SpatialGrid.Instance.RemoveExperience(this, SpatialGrid.Instance.GetGridPos(mCurrentPosition));
         }
 
-        ExperiencePool.Instance.ReturnExperience(this);
-    }
-
-    void OnDisable()
-    {
-        if (SpatialGrid.Instance != null)
+        public void Collect()
         {
-            SpatialGrid.Instance.RemoveExperience(this, SpatialGrid.Instance.GetGridPos(mLastPosition));
+            if (ExperienceBar.Instance != null)
+            {
+                ExperienceBar.Instance.AddExperience(mValue);
+            }
+
+            if (!mIsTrigger && SpatialGrid.Instance != null)
+            {
+                SpatialGrid.Instance.RemoveExperience(this, SpatialGrid.Instance.GetGridPos(mCurrentPosition));
+            }
+
+            ExperiencePool.Instance.ReturnExperience(this);
+        }
+
+        void OnDisable()
+        {
+            if (SpatialGrid.Instance != null)
+            {
+                SpatialGrid.Instance.RemoveExperience(this, SpatialGrid.Instance.GetGridPos(mLastPosition));
+            }
+        }
+
+        void Update()
+        {
+            if (mIsTrigger)
+            {
+                transform.position = Vector3.MoveTowards(
+                    transform.position,
+                    Player.Instance.transform.position,
+                    mSpeed * Time.deltaTime
+                );
+                mCurrentPosition = transform.position;
+                mLastPosition = mCurrentPosition;
+            }
         }
     }
 }

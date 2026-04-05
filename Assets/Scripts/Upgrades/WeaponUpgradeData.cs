@@ -1,8 +1,10 @@
 using UnityEngine;
 
-
-[CreateAssetMenu]
-public class WeaponUpgradeData : UpgradeData
+namespace Roguelike
 {
-    public GameObject weaponPrefab;
+    [CreateAssetMenu]
+    public class WeaponUpgradeData : UpgradeData
+    {
+        public GameObject mWeaponPrefab;
+    }
 }

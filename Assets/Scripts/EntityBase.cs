@@ -1,39 +1,29 @@
 using UnityEngine;
 
-
-public abstract class EntityBase : MonoBehaviour
+namespace Roguelike
 {
-    private float mPosX;
-    private float mPosY;
-
-    public float GetPosX()
+    public abstract class EntityBase : MonoBehaviour
     {
-        return mPosX;
-    }
+        private float mPosX;
+        private float mPosY;
 
-    public void SetPosX(float pValue)
-    {
-        mPosX = pValue;
-    }
-    public float GetPosY() 
-    {
-        return mPosY;
-    }
+        public float GetPosX()
+        {
+            return mPosX;
+        }
 
-    public void SetPosY(float pValue)
-    {
-        mPosY = pValue;
-    }
+        public void SetPosX(float pValue)
+        {
+            mPosX = pValue;
+        }
+        public float GetPosY()
+        {
+            return mPosY;
+        }
 
-    // Start is called before the first frame update
-    void Start()
-    {
-
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-
+        public void SetPosY(float pValue)
+        {
+            mPosY = pValue;
+        }
     }
 }

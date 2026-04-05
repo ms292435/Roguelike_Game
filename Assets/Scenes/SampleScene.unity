@@ -340,8 +340,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e267691a6b922b247996bef6f544c9dc, type: 2}
   - {fileID: 11400000, guid: 213423d890c07b64fb97bee3cbe8a2c3, type: 2}
   mUpgradeButtonPrefab: {fileID: 1923562580425098957, guid: 8ce6ff5f6aeb58c44b080988fdca5208, type: 3}
+  mLevelUpPanel: {fileID: 1832024279}
   mUpgradeUIContainer: {fileID: 1408144965}
-  levelUpPanel: {fileID: 1832024279}
 --- !u!4 &110146784
 Transform:
   m_ObjectHideFlags: 0
@@ -2411,8 +2411,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mEnemyPrefab: {fileID: 132872623360505547, guid: cc540824d722b9d46ba10d3acf8b7bf9, type: 3}
-  EnemyPoolCount: 1000
-  mActiveEnemiesList: []
+  EnemyPoolCount: 2000
 --- !u!4 &1827546791
 Transform:
   m_ObjectHideFlags: 0

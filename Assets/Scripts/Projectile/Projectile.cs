@@ -1,59 +1,64 @@
 using UnityEngine;
 
-public class Projectile : MonoBehaviour
+namespace Roguelike
 {
-    public float mSpeed = 10f;
-    public float mHitRadius = 0.5f;
-
-    private Vector3 mDirection;
-    private float mDamage;
-    private float mSpawnPosition;
-    public void Init(Vector3 pDirection, float pDamage)
+    public class Projectile : MonoBehaviour
     {
-        mDirection = pDirection.normalized;
-        mDamage = pDamage;
-        mSpawnPosition = transform.position.magnitude;
+        public float mSpeed = 10f;
+        public float mHitRadius = 0.5f;
 
-        float lAngle = Mathf.Atan2(mDirection.y, mDirection.x) * Mathf.Rad2Deg;
-        transform.rotation = Quaternion.Euler(0, 0, lAngle);
-    }
+        private Vector3 mDirection;
 
-    void Update()
-    {
-        Move();
-        CheckCollision();
-    }
+        private float mDamage;
+        private float mSpawnPosition;
 
-    void Move()
-    {
-        transform.position += mDirection * mSpeed * Time.deltaTime;
-    }
-
-    void CheckCollision()
-    {
-        // Get closest enemy in the grid
-        Enemy lClosestEnemy = SpatialGrid.Instance.GetClosestEnemyInGrid(transform.position);
-
-        if (lClosestEnemy == null) return;
-
-        // Test squared distance to avoid sqrt calculation
-        float lSqrDist = (transform.position - lClosestEnemy.transform.position).sqrMagnitude;
-
-        // If the closest enemy is within hit radius, apply damage
-        if (lSqrDist < mHitRadius * mHitRadius)
+        public void Init(Vector3 pDirection, float pDamage)
         {
-            lClosestEnemy.TakeDamage(mDamage);
+            mDirection = pDirection.normalized;
+            mDamage = pDamage;
+            mSpawnPosition = transform.position.magnitude;
+
+            float lAngle = Mathf.Atan2(mDirection.y, mDirection.x) * Mathf.Rad2Deg;
+            transform.rotation = Quaternion.Euler(0, 0, lAngle);
         }
 
-        // Return to pool if out of bounds
-        if ( transform.position.magnitude > mSpawnPosition + 20f)
+        private void Move()
         {
-            ReturnToPool();
+            transform.position += mSpeed * Time.deltaTime * mDirection;
         }
-    }
 
-    void ReturnToPool()
-    {
-        ProjectilePool.Instance.ReturnProjectile(this);
+        private void CheckCollision()
+        {
+            // Get closest enemy in the grid
+            Enemy lClosestEnemy = SpatialGrid.Instance.GetClosestEnemyInGrid(transform.position);
+
+            if (lClosestEnemy == null) return;
+
+            // Test squared distance to avoid sqrt calculation
+            float lSqrDist = (transform.position - lClosestEnemy.transform.position).sqrMagnitude;
+
+            // If the closest enemy is within hit radius, apply damage
+            if (lSqrDist < mHitRadius * mHitRadius)
+            {
+                lClosestEnemy.TakeDamage(mDamage);
+            }
+
+            // Return to pool if out of bounds
+            if (transform.position.magnitude > mSpawnPosition + 20f)
+            {
+                ReturnToPool();
+            }
+        }
+
+        private void ReturnToPool()
+        {
+            ProjectilePool.Instance.ReturnProjectile(this);
+        }
+
+        void Update()
+        {
+            Move();
+            CheckCollision();
+        }
     }
 }

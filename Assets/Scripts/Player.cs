@@ -1,112 +1,115 @@
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
-public class Player : Entity
+namespace Roguelike
 {
-    private List<Experience> mNearbyExpCache = new List<Experience>();
-    private List<Experience> mFlyingExperience = new List<Experience>();
-    public ExperienceBar mExperienceBar;
-
-    public float mFireRate = 1f;
-
-
-    public float mAttractRadius = 2f;
-    public float mCollectRadius = 1f;
-
-    private Rigidbody2D mRigibody;
-
-    private float mFireTimer = 0f;
-
-    public static Player Instance { get; private set; }
-
-    private void Awake()
+    public class Player : Entity
     {
-        if (Instance != null && Instance != this)
+        public ExperienceBar mExperienceBar;
+
+        public float mFireRate = 1f;
+        public float mAttractRadius = 2f;
+        public float mCollectRadius = 1f;
+
+        public static Player Instance { get; private set; }
+
+        private Rigidbody2D mRigibody;
+
+        private float mFireTimer = 0f;
+
+        private readonly List<Experience> mNearbyExpCache = new();
+        private readonly List<Experience> mFlyingExperience = new();
+
+        private Vector3 mCurrentPosition;
+
+        private void HandleExperience()
         {
-            Destroy(this);
-            return;
-        }
-        Instance = this;
-        Health = 100f;
-        Damage = 50f;
-        Speed = 4f;
-    }
+            float lSqrAttract = mAttractRadius * mAttractRadius;
+            float lSqrCollect = mCollectRadius * mCollectRadius;
 
-    private void Start()
-    {
-        mRigibody = GetComponent<Rigidbody2D>();
-        mRigibody.freezeRotation = true;
-    }
+            SpatialGrid.Instance.GetNearbyExperience(mCurrentPosition, mAttractRadius, mNearbyExpCache);
 
-    private void Update()
-    {
-        float lMoveHorizontal = Input.GetAxis("Horizontal");
-        float lMoveVertical = Input.GetAxis("Vertical");
-
-        mRigibody.velocity = new Vector3(lMoveHorizontal, lMoveVertical) * Speed;
-
-        HandleExperience();
-        HandleShooting();
-    }
-
-    private void HandleExperience()
-    {
-        Vector3 lPlayerPos = transform.position;
-        float lSqrAttract = mAttractRadius * mAttractRadius;
-        float lSqrCollect = mCollectRadius * mCollectRadius;
-
-        SpatialGrid.Instance.GetNearbyExperienceNonAlloc(lPlayerPos, mAttractRadius, mNearbyExpCache);
-
-        for (int i = mNearbyExpCache.Count - 1; i >= 0; i--)
-        {
-            Experience lExperience = mNearbyExpCache[i];
-
-            Vector3 lOffset = lPlayerPos - lExperience.mCurrentPosition;
-            float lSqrDist = lOffset.sqrMagnitude;
-
-            if (!lExperience.IsTrigger && lSqrDist < lSqrAttract)
+            for (int i = mNearbyExpCache.Count - 1; i >= 0; i--)
             {
-                lExperience.Trigger();
-                mFlyingExperience.Add(lExperience); 
+                Experience lExperience = mNearbyExpCache[i];
+
+                Vector3 lOffset = mCurrentPosition - lExperience.mCurrentPosition;
+                float lSqrDist = lOffset.sqrMagnitude;
+
+                if (!lExperience.IsTrigger && lSqrDist < lSqrAttract)
+                {
+                    lExperience.Trigger();
+                    mFlyingExperience.Add(lExperience);
+                }
+            }
+
+            for (int i = mFlyingExperience.Count - 1; i >= 0; i--)
+            {
+                Experience lExp = mFlyingExperience[i];
+                float lSqrDist = (mCurrentPosition - lExp.mCurrentPosition).sqrMagnitude;
+
+                if (lSqrDist < lSqrCollect)
+                {
+                    lExp.Collect();
+                    mFlyingExperience.RemoveAt(i);
+                }
             }
         }
 
-        for (int i = mFlyingExperience.Count - 1; i >= 0; i--)
+        private void HandleShooting()
         {
-            Experience lExp = mFlyingExperience[i];
-            float lSqrDist = (lPlayerPos - lExp.mCurrentPosition).sqrMagnitude;
+            mFireTimer += Time.deltaTime;
 
-            if (lSqrDist < lSqrCollect)
+            if (mFireTimer >= 1f / mFireRate)
             {
-                lExp.Collect(mExperienceBar);
-                mFlyingExperience.RemoveAt(i);
+                Shoot();
+                mFireTimer = 0f;
             }
         }
-    }
 
-    void HandleShooting()
-    {
-        mFireTimer += Time.deltaTime;
-
-        if (mFireTimer >= 1f / mFireRate)
+        private void Shoot()
         {
-            Shoot();
-            mFireTimer = 0f;
+            Enemy lTarget = SpatialGrid.Instance.GetClosestEnemyInGrid(mCurrentPosition);
+
+            if (lTarget == null) return;
+
+            Vector3 lDirection = (lTarget.transform.position - mCurrentPosition).normalized;
+
+            Projectile lProjectile = ProjectilePool.Instance.GetProjectile();
+            lProjectile.transform.position = mCurrentPosition;
+            lProjectile.Init(lDirection, Damage);
         }
-    }
 
-    void Shoot()
-    {
-        var lPlayerPosition = transform.position;
-        Enemy lTarget = SpatialGrid.Instance.GetClosestEnemyInGrid(lPlayerPosition);
+        void Awake()
+        {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(this);
+                return;
+            }
+            Instance = this;
+            Health = 100f;
+            Damage = 50f;
+            Speed = 4f;
+        }
 
-        if (lTarget == null) return;
+        void Start()
+        {
+            mRigibody = GetComponent<Rigidbody2D>();
+            mRigibody.freezeRotation = true;
+        }
 
-        Vector3 lDirection = (lTarget.transform.position - lPlayerPosition).normalized;
+        void Update()
+        {
+            mCurrentPosition = transform.position;
 
-        Projectile lProjectile = ProjectilePool.Instance.GetProjectile();
-        lProjectile.transform.position = lPlayerPosition;
-        lProjectile.Init(lDirection, Damage);
+            float lMoveHorizontal = Input.GetAxis("Horizontal");
+            float lMoveVertical = Input.GetAxis("Vertical");
+
+            mRigibody.velocity = new Vector3(lMoveHorizontal, lMoveVertical) * Speed;
+
+            HandleExperience();
+            HandleShooting();
+        }
     }
 }

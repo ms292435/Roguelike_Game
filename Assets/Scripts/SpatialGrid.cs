@@ -1,157 +1,184 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SpatialGrid : MonoBehaviour
+namespace Roguelike
 {
-
-    public float mCellSize = 4f;
-
-    private Dictionary<Vector2Int, HashSet<Enemy>> mGrid = new Dictionary<Vector2Int, HashSet<Enemy>>();
-    private Dictionary<Vector2Int, HashSet<Experience>> mExperienceGrid = new Dictionary<Vector2Int, HashSet<Experience>>();
-    public static SpatialGrid Instance { get; private set; }
-
-    private void Awake()
+    public class SpatialGrid : MonoBehaviour
     {
-        if (Instance != null && Instance != this)
+        public float mCellSize = 1f;
+        public static SpatialGrid Instance { get; private set; }
+
+        private readonly Dictionary<Vector2Int, HashSet<Enemy>> mGrid = new();
+        private readonly Dictionary<Vector2Int, HashSet<Experience>> mExperienceGrid = new();
+
+        public Vector2Int GetGridPos(Vector3 pWorldPos)
         {
-            Destroy(this);
-            return;
+            return new Vector2Int(Mathf.FloorToInt(pWorldPos.x / mCellSize),Mathf.FloorToInt(pWorldPos.y / mCellSize));
         }
-        Instance = this;
-    }
 
-    public Vector2Int GetGridPos(Vector3 pWorldPos)
-    {
-        return new Vector2Int(
-            Mathf.FloorToInt(pWorldPos.x / mCellSize),
-            Mathf.FloorToInt(pWorldPos.y / mCellSize)
-        );
-    }
-
-    public void UpdateEnemyPosition(Enemy pEnemy, Vector3 pOldPos, Vector3 pNewPos)
-    {
-        Vector2Int lOldGridPos = GetGridPos(pOldPos);
-        Vector2Int lNewGridPos = GetGridPos(pNewPos);
-
-        if (lOldGridPos != lNewGridPos)
+        public void UpdateEnemyPosition(Enemy pEnemy, Vector3 pOldPos, Vector3 pNewPos)
         {
-            RemoveEnemy(pEnemy, lOldGridPos);
-            AddEnemy(pEnemy, lNewGridPos);
-        }
-    }
+            Vector2Int lOldGridPos = GetGridPos(pOldPos);
+            Vector2Int lNewGridPos = GetGridPos(pNewPos);
 
-    public void AddEnemy(Enemy pEnemy, Vector2Int pGridPos)
-    {
-        if (!mGrid.ContainsKey(pGridPos))
-            mGrid[pGridPos] = new HashSet<Enemy>();
-
-        mGrid[pGridPos].Add(pEnemy);
-    }
-
-    public void RemoveEnemy(Enemy pEnemy, Vector2Int pGridPos)
-    {
-        if (mGrid.TryGetValue(pGridPos, out HashSet<Enemy> lCell))
-        {
-            lCell.Remove(pEnemy);
-
-            if (lCell.Count == 0)
+            if (lOldGridPos != lNewGridPos)
             {
-                mGrid.Remove(pGridPos);
+                RemoveEnemy(pEnemy, lOldGridPos);
+                AddEnemy(pEnemy, lNewGridPos);
             }
         }
-    }
 
-    public Enemy GetClosestEnemyInGrid(Vector3 pPosition, float pMaxCellRadius = 5)
-    {
-        Vector2Int lCenterCell = GetGridPos(pPosition);
-        Enemy lClosest = null;
-        float lMinDistSqr = Mathf.Infinity;
-
-        for (int lLayer = 0; lLayer <= pMaxCellRadius; lLayer++)
+        public void AddEnemy(Enemy pEnemy, Vector2Int pGridPos)
         {
-            bool lFoundSomethingInThisLayer = false;
-
-            for (int x = -lLayer; x <= lLayer; x++)
+            if (!mGrid.ContainsKey(pGridPos))
             {
-                for (int y = -lLayer; y <= lLayer; y++)
-                {
-                    if (lLayer > 0 && Mathf.Abs(x) != lLayer && Mathf.Abs(y) != lLayer) continue;
+                mGrid[pGridPos] = new HashSet<Enemy>();
+            }
+            mGrid[pGridPos].Add(pEnemy);
+        }
 
-                    Vector2Int lCell = lCenterCell + new Vector2Int(x, y);
-                    if (mGrid.TryGetValue(lCell, out HashSet<Enemy> lEnemiesInCell))
+        public void RemoveEnemy(Enemy pEnemy, Vector2Int pGridPos)
+        {
+            if (mGrid.TryGetValue(pGridPos, out HashSet<Enemy> lCell))
+            {
+                lCell.Remove(pEnemy);
+
+                if (lCell.Count == 0)
+                {
+                    mGrid.Remove(pGridPos);
+                }
+            }
+        }
+
+        public Enemy GetClosestEnemyInGrid(Vector3 pPosition, int pMaxCellRadius = 5)
+        {
+            Vector2Int lCenterCell = GetGridPos(pPosition);
+            Enemy lClosest = null;
+            float lMinDistSqr = Mathf.Infinity;
+
+            for (int lLayer = 0; lLayer <= pMaxCellRadius; lLayer++)
+            {
+                // Look for best candidate in the current layer
+                Enemy lCandidate = GetClosestInLayer(pPosition, lCenterCell, lLayer, ref lMinDistSqr);
+
+                if (lCandidate != null)
+                    lClosest = lCandidate;
+
+                // If we found a candidate and it's closer than the next layer's minimum distance, we can stop searching
+                if (lClosest != null && IsCloserThanNextLayer(lMinDistSqr, lLayer))
+                    return lClosest;
+            }
+
+            return lClosest;
+        }
+
+        public HashSet<Enemy> GetEnemiesInCell(int pX, int pY)
+        {
+            if (mGrid.TryGetValue(new Vector2Int(pX, pY), out HashSet<Enemy> lEnemies))
+            {
+                return lEnemies;
+            }
+            return lEnemies; // May be null
+        }
+
+        public void AddExperience(Experience pExp, Vector2Int pGridPos)
+        {
+            if (!mExperienceGrid.ContainsKey(pGridPos)) mExperienceGrid[pGridPos] = new HashSet<Experience>();
+            mExperienceGrid[pGridPos].Add(pExp);
+        }
+
+        public void RemoveExperience(Experience pExp, Vector2Int pGridPos)
+        {
+            if (mExperienceGrid.TryGetValue(pGridPos, out HashSet<Experience> lCell))
+            {
+                lCell.Remove(pExp);
+                if (lCell.Count == 0)
+                {
+                    mExperienceGrid.Remove(pGridPos);
+                }
+            }
+        }
+
+        public void GetNearbyExperience(Vector3 pPosition, float pRadius, List<Experience> pResultList)
+        {
+            pResultList.Clear();
+            Vector2Int lCenterCell = GetGridPos(pPosition);
+            float lSqrRadius = pRadius * pRadius;
+
+            int lCellRange = Mathf.CeilToInt(pRadius / mCellSize);
+
+            for (int x = -lCellRange; x <= lCellRange; x++)
+            {
+                for (int y = -lCellRange; y <= lCellRange; y++)
+                {
+                    if (mExperienceGrid.TryGetValue(lCenterCell + new Vector2Int(x, y), out var lCell))
                     {
-                        foreach (Enemy lEnemy in lEnemiesInCell)
+                        foreach (var exp in lCell)
                         {
-                            float lDistSqr = (pPosition - lEnemy.mCurrentPosition).sqrMagnitude;
-                            if (lDistSqr < lMinDistSqr)
+                            if ((pPosition - exp.mCurrentPosition).sqrMagnitude < lSqrRadius)
                             {
-                                lMinDistSqr = lDistSqr;
-                                lClosest = lEnemy;
-                                lFoundSomethingInThisLayer = true;
+                                pResultList.Add(exp);
                             }
                         }
                     }
                 }
             }
+        }
 
-            if (lFoundSomethingInThisLayer)
+        private Enemy GetClosestInLayer(Vector3 pOrigin, Vector2Int pCenter, int pLayer, ref float pMinDistSqr)
+        {
+            Enemy lBestInLayer = null;
+
+            for (int x = -pLayer; x <= pLayer; x++)
             {
-                float lDistanceToNextLayer = (lLayer + 1) * mCellSize;
-                if (lMinDistSqr < lDistanceToNextLayer * lDistanceToNextLayer)
+                for (int y = -pLayer; y <= pLayer; y++)
                 {
-                    return lClosest;
+                    // Only check the cells that are exactly on the current layer's border (except layer 0 which is the center cell)
+                    if (pLayer > 0 && Mathf.Abs(x) != pLayer && Mathf.Abs(y) != pLayer)
+                        continue;
+
+                    Vector2Int lCell = pCenter + new Vector2Int(x, y);
+                    Enemy lFound = GetClosestInCell(pOrigin, lCell, ref pMinDistSqr);
+
+                    if (lFound != null)
+                        lBestInLayer = lFound;
                 }
             }
+            return lBestInLayer;
         }
-        return lClosest;
-    }
 
-    public HashSet<Enemy> GetEnemiesInCell(int pX, int pY)
-    {
-        if (mGrid.TryGetValue(new Vector2Int(pX, pY), out HashSet<Enemy> lEnemies))
+        private Enemy GetClosestInCell(Vector3 pOrigin, Vector2Int pCell, ref float pMinDistSqr)
         {
-            return lEnemies;
-        }
-        return null;
-    }
+            if (!mGrid.TryGetValue(pCell, out HashSet<Enemy> lEnemies))
+                return null;
 
-    public void AddExperience(Experience pExp, Vector2Int pGridPos)
-    {
-        if (!mExperienceGrid.ContainsKey(pGridPos)) mExperienceGrid[pGridPos] = new HashSet<Experience>();
-        mExperienceGrid[pGridPos].Add(pExp);
-    }
-
-    public void RemoveExperience(Experience pExp, Vector2Int pGridPos)
-    {
-        if (mExperienceGrid.TryGetValue(pGridPos, out HashSet<Experience> lCell))
-        {
-            lCell.Remove(pExp);
-        }
-    }
-
-    public void GetNearbyExperienceNonAlloc(Vector3 pPos, float pRadius, List<Experience> pResultList)
-    {
-        pResultList.Clear();
-        Vector2Int lCenterCell = GetGridPos(pPos);
-        float lSqrRadius = pRadius * pRadius;
-
-        int lCellRange = Mathf.CeilToInt(pRadius / mCellSize);
-
-        for (int x = -lCellRange; x <= lCellRange; x++)
-        {
-            for (int y = -lCellRange; y <= lCellRange; y++)
+            Enemy lClosest = null;
+            foreach (Enemy lEnemy in lEnemies)
             {
-                if (mExperienceGrid.TryGetValue(lCenterCell + new Vector2Int(x, y), out var lCell))
+                float lDistSqr = (pOrigin - lEnemy.mCurrentPosition).sqrMagnitude;
+                if (lDistSqr < pMinDistSqr)
                 {
-                    foreach (var exp in lCell)
-                    {
-                        if ((pPos - exp.mCurrentPosition).sqrMagnitude < lSqrRadius)
-                        {
-                            pResultList.Add(exp);
-                        }
-                    }
+                    pMinDistSqr = lDistSqr;
+                    lClosest = lEnemy;
                 }
             }
+            return lClosest;
+        }
+
+        private bool IsCloserThanNextLayer(float pMinDistSqr, int pLayer)
+        {
+            float lDistToNextLayer = (pLayer + 1) * mCellSize;
+            return pMinDistSqr < (lDistToNextLayer * lDistToNextLayer);
+        }
+
+        void Awake()
+        {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(this);
+                return;
+            }
+            Instance = this;
         }
     }
 }
