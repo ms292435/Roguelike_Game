@@ -26,7 +26,6 @@ namespace Roguelike
             }
         }
 
-
         public void Trigger()
         {
             mIsTrigger = true;

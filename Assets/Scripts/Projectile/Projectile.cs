@@ -41,13 +41,14 @@ namespace Roguelike
             if (lSqrDist < mHitRadius * mHitRadius)
             {
                 lClosestEnemy.TakeDamage(mDamage);
+                ReturnToPool();
             }
 
             // Return to pool if out of bounds
-            if (transform.position.magnitude > mSpawnPosition + 20f)
-            {
-                ReturnToPool();
-            }
+            //if (transform.position.magnitude > mSpawnPosition + 20f)
+            //{
+            //    ReturnToPool();
+            //}
         }
 
         private void ReturnToPool()

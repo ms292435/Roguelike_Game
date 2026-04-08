@@ -72,6 +72,41 @@ namespace Roguelike
             return lClosest;
         }
 
+        public HashSet<Enemy> GetEnemiesInRadius(Vector3 pPosition, float pRadius)
+        {
+            HashSet<Enemy> lResult = new();
+            Vector2Int lCenterCell = GetGridPos(pPosition);
+            float lSqrRadius = pRadius * pRadius;
+
+            // On calcule combien de cellules on doit vérifier autour du centre
+            int lCellRange = Mathf.CeilToInt(pRadius / mCellSize);
+
+            for (int x = -lCellRange; x <= lCellRange; x++)
+            {
+                for (int y = -lCellRange; y <= lCellRange; y++)
+                {
+                    // On récupère les ennemis de la cellule via ta méthode existante
+                    HashSet<Enemy> lCell = GetEnemiesInCell(lCenterCell.x + x, lCenterCell.y + y);
+
+                    if (lCell != null)
+                    {
+                        foreach (Enemy lEnemy in lCell)
+                        {
+                            // On vérifie la distance réelle entre le point et l'ennemi
+                            float lDistSqr = (pPosition - lEnemy.mCurrentPosition).sqrMagnitude;
+
+                            if (lDistSqr <= lSqrRadius)
+                            {
+                                lResult.Add(lEnemy);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return lResult;
+        }
+
         public HashSet<Enemy> GetEnemiesInCell(int pX, int pY)
         {
             if (mGrid.TryGetValue(new Vector2Int(pX, pY), out HashSet<Enemy> lEnemies))

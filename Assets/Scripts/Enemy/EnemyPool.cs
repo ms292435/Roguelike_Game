@@ -45,7 +45,7 @@ namespace Roguelike
             return mActiveEnemiesList.Count;
         }
 
-        private void Update()
+        void Update()
         {
             for (int i = 0; i < mActiveEnemiesList.Count; i++)
             {
@@ -53,7 +53,7 @@ namespace Roguelike
             }
         }
 
-        private void Awake()
+        void Awake()
         {
             if (Instance != null && Instance != this)
             {
@@ -63,7 +63,7 @@ namespace Roguelike
             Instance = this;
         }
 
-        private void Start()
+        void Start()
         {
             for (int i = 0; i < EnemyPoolCount; i++)
             {

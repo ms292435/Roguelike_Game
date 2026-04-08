@@ -28,7 +28,7 @@ namespace Roguelike
         {
             mTarget = pTarget;
             Health = 50f;
-            Speed = 0.7f;
+            Speed = 1f;
 
             Camera lCam = Camera.main;
             float lHeight = lCam.orthographicSize;

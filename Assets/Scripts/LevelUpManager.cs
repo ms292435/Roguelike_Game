@@ -20,7 +20,6 @@ namespace Roguelike
         public static LevelUpManager Instance { get; private set; }
 
         private int mCurrentLevel = 1;
-
         public void OnLevelUp()
         {
             mCurrentLevel++;
@@ -34,7 +33,6 @@ namespace Roguelike
                 StartCoroutine(SlowZoomRoutine(lTargetSize, 5.0f)); // 5.0f = seconds 
             }
         }
-
 
         public void ShowUpgradeOptions(List<UpgradeData> pChoices)
         {
@@ -70,14 +68,9 @@ namespace Roguelike
                         break;
                 }
             }
-            else if (pData.GetType() == typeof(WeaponUpgradeData))
+            else if (pData is WeaponUpgradeData lWeaponUpgrade)
             {
-                switch (pData.Name)
-                {
-                    default:
-                        Debug.LogWarning("Upgrade not implemented yet : " + pData.Name);
-                        break;
-                }
+                Player.Instance.EquipWeapon(lWeaponUpgrade);
             }
 
             mLevelUpPanel.SetActive(false);
@@ -86,7 +79,16 @@ namespace Roguelike
 
         private List<UpgradeData> GetRandomUpgrades(int pCount)
         {
-            return mAllAvailableUpgrades.OrderBy(lRandomValue => Random.value).Take(pCount).ToList();
+            return mAllAvailableUpgrades
+            .Where(lUpgrade =>
+            {
+                if (!(lUpgrade is WeaponUpgradeData lWeaponData)) return true;
+
+                return !WeaponManager.Instance.mEquippedWeapons.Any(lWeapon => lWeapon.Data == lWeaponData);
+            })
+            .OrderBy(l => Random.value)
+            .Take(pCount)
+            .ToList();
         }
 
         private IEnumerator SlowZoomRoutine(float pTargetSize, float pDuration)
@@ -110,7 +112,7 @@ namespace Roguelike
             mCamera.m_Lens.OrthographicSize = pTargetSize;
         }
 
-        private void Awake()
+        void Awake()
         {
             if (Instance != null && Instance != this)
             {
@@ -122,7 +124,7 @@ namespace Roguelike
             }
         }
 
-        private void OnGUI()
+        void OnGUI()
         {
             GUIStyle lStyle = new();
             int lWidth = Screen.width, lHeight = Screen.height;

@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce915bde9fcf3c84cb718f2c3e72cfd6, type: 3}
+  m_Name: FireWand
+  m_EditorClassIdentifier: 
+  Name: FireWand
+  Icon: {fileID: 21300000, guid: 811e4a94c4f20a942bac6955f1faf6c8, type: 3}
+  Description: 
+  mVisualPrefab: {fileID: 3661868248530554710, guid: c6d49c2c636ed5d43891419cd1998db2, type: 3}
+  Type: FireWand

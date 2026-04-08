@@ -1,3 +1,4 @@
+using UnityEditor;
 using UnityEngine;
 
 namespace Roguelike
@@ -5,6 +6,7 @@ namespace Roguelike
     [CreateAssetMenu]
     public class WeaponUpgradeData : UpgradeData
     {
-        public GameObject mWeaponPrefab;
+        public GameObject mVisualPrefab;
+        public string Type;
     }
 }

@@ -1,0 +1,187 @@
+﻿@startuml
+class AttackVfx {
+    + DestroyVfx() : void
+}
+class Entity <<abstract>> {
+    + Health : float { get; set; }
+    + Damage : float { get; set; }
+    + Speed : float { get; set; }
+}
+class EntityBase <<abstract>> {
+    - mPosX : float
+    - mPosY : float
+    + GetPosX() : float
+    + SetPosX(pValue : float) : void
+    + GetPosY() : float
+    + SetPosY(pValue : float) : void
+}
+class ExperienceBar {
+    + mXpFill : Image
+    + AddExperience(pAmount : float) : void
+    - UpdateExperienceBar() : void
+    - LevelUp() : void
+}
+class FpsCounter {
+}
+class InfiniteMap {
+    + mTilePrefab : GameObject
+    - mCurrentChunk : Vector2Int
+    - UpdateGrid() : void
+    - GetTileToPlace(List<Vector2Int> : ref) : GameObject
+    - GetChunkCoords(pPos : Vector3) : Vector2Int
+}
+class LevelUpManager {
+    + mCamera : CinemachineVirtualCamera
+    + mAllAvailableUpgrades : List<UpgradeData>
+    + mUpgradeButtonPrefab : GameObject
+    + mLevelUpPanel : GameObject
+    + mUpgradeUIContainer : Transform
+    + OnLevelUp() : void
+    + ShowUpgradeOptions(pChoices : List<UpgradeData>) : void
+    + ApplyUpgrade(pData : UpgradeData) : void
+    - GetRandomUpgrades(pCount : int) : List<UpgradeData>
+    - SlowZoomRoutine(pTargetSize : float, pDuration : float) : IEnumerator
+}
+class Player {
+    + mExperienceBar : ExperienceBar
+    + mWeaponSlot : Transform
+    - mRigibody : Rigidbody2D
+    - mCurrentPosition : Vector3
+    + EquipWeapon(data : WeaponUpgradeData) : void
+    - HandleExperience() : void
+    - HandleShooting() : void
+    - Shoot() : void
+}
+class SpatialGrid {
+    + GetGridPos(pWorldPos : Vector3) : Vector2Int
+    + UpdateEnemyPosition(pEnemy : Enemy, pOldPos : Vector3, pNewPos : Vector3) : void
+    + AddEnemy(pEnemy : Enemy, pGridPos : Vector2Int) : void
+    + RemoveEnemy(pEnemy : Enemy, pGridPos : Vector2Int) : void
+    + GetClosestEnemyInGrid(pPosition : Vector3, pMaxCellRadius : int) : Enemy
+    + GetEnemiesInRadius(pPosition : Vector3, pRadius : float) : HashSet<Enemy>
+    + GetEnemiesInCell(pX : int, pY : int) : HashSet<Enemy>
+    + AddExperience(pExp : Experience, pGridPos : Vector2Int) : void
+    + RemoveExperience(pExp : Experience, pGridPos : Vector2Int) : void
+    + GetNearbyExperience(pPosition : Vector3, pRadius : float, pResultList : List<Experience>) : void
+    - GetClosestInLayer(pOrigin : Vector3, pCenter : Vector2Int, pLayer : int, float : ref) : Enemy
+    - GetClosestInCell(pOrigin : Vector3, pCell : Vector2Int, float : ref) : Enemy
+    - IsCloserThanNextLayer(pMinDistSqr : float, pLayer : int) : bool
+}
+class Enemy {
+    + mCurrentPosition : Vector3
+    - mLastPosition : Vector3
+    - mSeparationForce : Vector3
+    - mTarget : Transform
+    - mAnimationOffset : float
+    - mInstanceUpdateOrder : int
+    + Init(pTarget : Transform) : void
+    + TakeDamage(pDamage : float) : void
+    + Die() : void
+    + Tick() : void
+    - SpawnExperience() : void
+    - HandleSeparation() : void
+    - HandleNeighbors(pNeighbors : HashSet<Enemy>) : void
+}
+class EnemyPool {
+    + mEnemyPrefab : GameObject
+    + GetEnemy() : Enemy
+    + ReturnEnemy(pEnemy : Enemy) : void
+    + GetActiveEnemyCount() : int
+}
+class EnemySpawner {
+    + mTarget : Transform
+}
+class Experience {
+    + mIsTrigger : bool
+    + mCurrentPosition : Vector3
+    - mLastPosition : Vector3
+    + Init() : void
+    + Trigger() : void
+    + Collect() : void
+}
+class ExperiencePool {
+    + mExperiencePrefab : GameObject
+    + ExperiencePoolCount : int { get; set; }
+    + GetExperience() : Experience
+    + GetActiveExperienceCount() : int
+    + ReturnExperience(pExperience : Experience) : void
+}
+class Projectile {
+    - mDirection : Vector3
+    - mDamage : float
+    - mSpawnPosition : float
+    + Init(pDirection : Vector3, pDamage : float) : void
+    - Move() : void
+    - CheckCollision() : void
+    - ReturnToPool() : void
+}
+class ProjectilePool {
+    + mProjectilePrefab : GameObject
+    + GetProjectile() : Projectile
+    + ReturnProjectile(pProjectile : Projectile) : void
+}
+class StatBoostData {
+    + multiplier : float
+    + type : string
+}
+class UpgradeData <<abstract>> {
+    + Name : string
+    + Icon : Sprite
+    + Description : string
+}
+class UpgradeUIElement {
+    - mTitleText : TextMeshProUGUI
+    - mDescriptionText : TextMeshProUGUI
+    - mIconImage : Image
+    - mAssignedData : UpgradeData
+    - mManager : LevelUpManager
+    + Setup(pData : UpgradeData, pManager : LevelUpManager) : void
+    + OnClickSelect() : void
+}
+class WeaponUpgradeData {
+    + mVisualPrefab : GameObject
+    + Type : string
+}
+class FireWand {
+}
+class Sword {
+    + mSlashVfxPrefab : GameObject
+    - mTimer : float
+    - mCurrentPosition : Vector3
+    - ExecuteAttack() : void
+}
+MonoBehaviour <|-- AttackVfx
+EntityBase <|-- Entity
+MonoBehaviour <|-- EntityBase
+MonoBehaviour <|-- ExperienceBar
+MonoBehaviour <|-- FpsCounter
+MonoBehaviour <|-- InfiniteMap
+MonoBehaviour <|-- LevelUpManager
+Entity <|-- Player
+MonoBehaviour <|-- SpatialGrid
+Entity <|-- Enemy
+MonoBehaviour <|-- EnemyPool
+MonoBehaviour <|-- EnemySpawner
+MonoBehaviour <|-- Experience
+MonoBehaviour <|-- ExperiencePool
+MonoBehaviour <|-- Projectile
+MonoBehaviour <|-- ProjectilePool
+UpgradeData <|-- StatBoostData
+ScriptableObject <|-- UpgradeData
+MonoBehaviour <|-- UpgradeUIElement
+UpgradeData <|-- WeaponUpgradeData
+MonoBehaviour <|-- FireWand
+MonoBehaviour <|-- Sword
+LevelUpManager --> UpgradeData : parameter
+Player --> ExperienceBar : field
+Player --> WeaponUpgradeData : parameter
+SpatialGrid --> Enemy : parameter
+SpatialGrid --> Experience : parameter
+EnemyPool --> Enemy : parameter
+ExperiencePool --> Experience : parameter
+ProjectilePool --> Projectile : parameter
+UpgradeUIElement --> UpgradeData : field
+UpgradeUIElement --> LevelUpManager : field
+UpgradeUIElement --> UpgradeData : parameter
+UpgradeUIElement --> LevelUpManager : parameter
+@enduml

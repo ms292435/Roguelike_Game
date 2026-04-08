@@ -28,7 +28,6 @@ namespace Roguelike
                 lProjectile = lObj.GetComponent<Projectile>();
             }
 
-            lProjectile.gameObject.SetActive(true);
             return lProjectile;
         }
 
