@@ -2,13 +2,16 @@ using Cinemachine;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using TMPro;
 using UnityEngine;
 
 namespace Roguelike
 {
-    public class LevelUpManager : MonoBehaviour
+    public class LevelUpManager : MonoBehaviour, IObserver
     {
         public CinemachineVirtualCamera mCamera;
+
+        public TextMeshProUGUI mLevelText;
 
         public List<UpgradeData> mAllAvailableUpgrades;
 
@@ -20,12 +23,25 @@ namespace Roguelike
         public static LevelUpManager Instance { get; private set; }
 
         private int mCurrentLevel = 1;
+
+        public void OnNotify(ISubject pSubject, string pEventName)
+        {
+            if (pEventName == "LevelUp")
+            {
+                OnLevelUp();
+            }
+        }
         public void OnLevelUp()
         {
             mCurrentLevel++;
+
+            if (mLevelText != null)
+                mLevelText.text = $"Level: {mCurrentLevel}";
+
             Time.timeScale = 0f;
             List<UpgradeData> lSelectedChoices = GetRandomUpgrades(3);
             ShowUpgradeOptions(lSelectedChoices);
+
             if (mCurrentLevel % 2 == 0)
             {
                 StopAllCoroutines(); // Avoid multiple zooms stacking if the player levels up multiple times quickly
@@ -122,17 +138,13 @@ namespace Roguelike
             {
                 Instance = this;
             }
+            if (mLevelText != null)
+                mLevelText.text = $"Level: {mCurrentLevel}";
         }
 
-        void OnGUI()
+        void Start()
         {
-            GUIStyle lStyle = new();
-            int lWidth = Screen.width, lHeight = Screen.height;
-            Rect lRect = new(0, 0, lWidth, 30);
-            lStyle.alignment = TextAnchor.UpperCenter;
-            lStyle.fontSize = lHeight * 2 / 100;
-            lStyle.normal.textColor = Color.white;
-            GUI.Label(lRect, $"Level: {mCurrentLevel}", lStyle);
+            Player.Instance.AddObserver(this);
         }
     }
 }

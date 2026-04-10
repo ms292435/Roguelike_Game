@@ -40,7 +40,7 @@ namespace Roguelike
             Projectile lProjectile = ProjectilePool.Instance.GetProjectile();
             lProjectile.transform.position = Player.Instance.mCurrentPosition;
 
-            lProjectile.Init(lDirection, mDamage);
+            lProjectile.Init(lDirection, mDamage * Player.Instance.Damage);
             lProjectile.gameObject.SetActive(true);
         }
     }

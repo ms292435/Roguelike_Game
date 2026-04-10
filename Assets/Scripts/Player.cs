@@ -1,28 +1,36 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace Roguelike
 {
-    public class Player : Entity
+    public class Player : Entity, ISubject
     {
         public ExperienceBar mExperienceBar;
 
         public Transform mWeaponSlot;
 
-        public float mFireRate = 1f;
         public float mAttractRadius = 2f;
         public float mCollectRadius = 1f;
+        public float CurrentXP { get; private set; }
+        public float MaxXP { get; private set; }
 
         public static Player Instance { get; private set; }
+
 
         public Vector3 mCurrentPosition;
 
         private Rigidbody2D mRigibody;
 
-        private readonly List<Experience> mNearbyExpCache = new();
-        private readonly List<Experience> mFlyingExperience = new();
+        private readonly List<IObserver> mObservers = new();
 
+        public void AddObserver(IObserver pObserver) => mObservers.Add(pObserver);
+
+        public void RemoveObserver(IObserver pObserver) => mObservers.Remove(pObserver);
+
+        public void Notify(string pEventName)
+        {
+            foreach (var lObserver in mObservers) lObserver.OnNotify(this, pEventName);
+        }
 
         public void EquipWeapon(WeaponUpgradeData pWeaponData)
         {
@@ -48,38 +56,17 @@ namespace Roguelike
             WeaponManager.Instance.AddWeapon(lWeaponLogic, pWeaponData);
         }
 
-        private void HandleExperience()
+        public void AddExperience(float pAmount)
         {
-            float lSqrAttract = mAttractRadius * mAttractRadius;
-            float lSqrCollect = mCollectRadius * mCollectRadius;
+            CurrentXP += pAmount;
 
-            SpatialGrid.Instance.GetNearbyExperience(mCurrentPosition, mAttractRadius, mNearbyExpCache);
-
-            for (int i = mNearbyExpCache.Count - 1; i >= 0; i--)
+            while (CurrentXP >= MaxXP)
             {
-                Experience lExperience = mNearbyExpCache[i];
-
-                Vector3 lOffset = mCurrentPosition - lExperience.mCurrentPosition;
-                float lSqrDist = lOffset.sqrMagnitude;
-
-                if (!lExperience.IsTrigger && lSqrDist < lSqrAttract)
-                {
-                    lExperience.Trigger();
-                    mFlyingExperience.Add(lExperience);
-                }
+                CurrentXP -= MaxXP;
+                MaxXP = Mathf.Round(MaxXP * 1.5f); 
+                Notify("LevelUp"); 
             }
-
-            for (int i = mFlyingExperience.Count - 1; i >= 0; i--)
-            {
-                Experience lExperience = mFlyingExperience[i];
-                float lSqrDist = (mCurrentPosition - lExperience.mCurrentPosition).sqrMagnitude;
-
-                if (lSqrDist < lSqrCollect)
-                {
-                    lExperience.Collect();
-                    mFlyingExperience.RemoveAt(i);
-                }
-            }
+            Notify("Experience"); 
         }
 
         void Awake()
@@ -91,8 +78,9 @@ namespace Roguelike
             }
             Instance = this;
             Health = 100f;
-            Damage = 25f;
+            Damage = 1f;
             Speed = 4f;
+            MaxXP = 10f;
         }
 
         void Start()
@@ -109,8 +97,7 @@ namespace Roguelike
             float lMoveVertical = Input.GetAxis("Vertical");
 
             mRigibody.velocity = new Vector3(lMoveHorizontal, lMoveVertical) * Speed;
-
-            HandleExperience();
         }
+
     }
 }

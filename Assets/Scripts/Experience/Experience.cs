@@ -34,9 +34,9 @@ namespace Roguelike
 
         public void Collect()
         {
-            if (ExperienceBar.Instance != null)
+            if (Player.Instance != null)
             {
-                ExperienceBar.Instance.AddExperience(mValue);
+                Player.Instance.AddExperience(mValue);
             }
 
             if (!mIsTrigger && SpatialGrid.Instance != null)

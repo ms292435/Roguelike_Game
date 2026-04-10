@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6cbbb2fcabfa33743809c9782d948e1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mDamage: 50
+  mDamage: 15
   mAttackInterval: 1
   mAttackRadius: 2
   mSlashVfxPrefab: {fileID: 4287518683449023797, guid: 4c44645261b18df4fb80f7cbb8254b7f, type: 3}
