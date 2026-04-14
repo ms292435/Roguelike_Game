@@ -46,14 +46,23 @@ namespace Roguelike
                 return;
             }
 
-            if (pWeaponData.mVisualPrefab == null)
+            if (pWeaponData.mWeaponLogicPrefab == null)
             {
-                Debug.LogError("ERROR: The mVisualPrefab is null in the weapon data!");
+                Debug.LogError("ERROR: The mWeaponLogicPrefab is null in the weapon data!");
                 return;
             }
 
-            GameObject lWeaponLogic = Instantiate(pWeaponData.mVisualPrefab, mWeaponSlot);
-            WeaponManager.Instance.AddWeapon(lWeaponLogic, pWeaponData);
+            GameObject lWeaponLogic = Instantiate(pWeaponData.mWeaponLogicPrefab, mWeaponSlot);
+
+            if (lWeaponLogic.TryGetComponent<IWeapon>(out var lWeaponInterface))
+            {
+                lWeaponInterface.Initialize(pWeaponData);
+                WeaponManager.Instance.AddWeapon(lWeaponLogic, pWeaponData);
+            }
+            else
+            {
+                Debug.LogError($"Le prefab {pWeaponData.mWeaponLogicPrefab.name} n'a pas de script IWeapon !");
+            }
         }
 
         public void AddExperience(float pAmount)
@@ -80,7 +89,7 @@ namespace Roguelike
             Health = 100f;
             Damage = 1f;
             Speed = 4f;
-            MaxXP = 10f;
+            MaxXP = 1f;
         }
 
         void Start()
@@ -93,11 +102,6 @@ namespace Roguelike
         {
             mCurrentPosition = transform.position;
             WeaponManager.Instance.UpdateWeapons();
-            float lMoveHorizontal = Input.GetAxis("Horizontal");
-            float lMoveVertical = Input.GetAxis("Vertical");
-
-            mRigibody.velocity = new Vector3(lMoveHorizontal, lMoveVertical) * Speed;
         }
-
     }
 }

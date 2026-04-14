@@ -72,5 +72,17 @@ namespace Roguelike
                 mInactives.Push(lEnemy);
             }
         }
+
+        private void OnGUI()
+        {
+            GUIStyle lStyle = new();
+            int lWidth = Screen.width, lHeight = Screen.height;
+            Rect lRect = new(0, 50, lWidth, 30);
+            lStyle.alignment = TextAnchor.UpperRight;
+            lStyle.fontSize = lHeight * 2 / 100;
+            lStyle.normal.textColor = Color.white;
+
+            GUI.Label(lRect, $"Active Enemies: {GetActiveEnemyCount()}", lStyle);
+        }
     }
 }

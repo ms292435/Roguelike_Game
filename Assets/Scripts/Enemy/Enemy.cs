@@ -30,40 +30,8 @@ namespace Roguelike
             Health = 50f;
             Speed = 1f;
 
-            Camera lCam = Camera.main;
-            float lHeight = lCam.orthographicSize;
-            float lWidth = lHeight * lCam.aspect;
-
-            float lMargin = 2f;
-            float lSpawnX, lSpawnY;
-
-            int lSide = UnityEngine.Random.Range(0, 4);
-
-            switch (lSide)
-            {
-                case 0: // UP 
-                    lSpawnX = UnityEngine.Random.Range(-lWidth, lWidth);
-                    lSpawnY = lHeight + lMargin;
-                    break;
-                case 1: // DOWN
-                    lSpawnX = UnityEngine.Random.Range(-lWidth, lWidth);
-                    lSpawnY = -lHeight - lMargin;
-                    break;
-                case 2: // LEFT
-                    lSpawnX = -lWidth - lMargin;
-                    lSpawnY = UnityEngine.Random.Range(-lHeight, lHeight);
-                    break;
-                default: // RIGHT
-                    lSpawnX = lWidth + lMargin;
-                    lSpawnY = UnityEngine.Random.Range(-lHeight, lHeight);
-                    break;
-            }
-
-            Vector3 lRelativePos = new(lSpawnX, lSpawnY, 0);
-            transform.position = lCam.transform.position + lRelativePos;
-            transform.position = new Vector3(transform.position.x, transform.position.y, 0f);
-
             mLastPosition = transform.position;
+
             SpatialGrid.Instance.AddEnemy(this, SpatialGrid.Instance.GetGridPos(mLastPosition));
             mAnimationOffset = Random.Range(0f, 10f);
         }

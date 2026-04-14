@@ -6,7 +6,8 @@ namespace Roguelike
     [CreateAssetMenu]
     public class WeaponUpgradeData : UpgradeData
     {
-        public GameObject mVisualPrefab;
+        public GameObject mWeaponLogicPrefab;
+        public GameObject mProjectilePrefab;
         public string Type;
     }
 }

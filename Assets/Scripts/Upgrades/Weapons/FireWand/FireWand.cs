@@ -6,13 +6,11 @@ namespace Roguelike
     public class FireWand : MonoBehaviour, IWeapon
     {
         public WeaponUpgradeData Data => mData;
-
         private WeaponUpgradeData mData;
 
-        private float mDamage = 50f; 
-        private float mFireRate = 0.5f; 
+        private readonly float mDamage = 50f; 
+        private readonly float mFireRate = 0.5f;
         private float mFireTimer = 0f;
-
 
         public void Initialize(WeaponUpgradeData pData)
         {
@@ -32,16 +30,14 @@ namespace Roguelike
 
         public void Attack()
         {
-            Enemy lTarget = SpatialGrid.Instance.GetClosestEnemyInGrid(Player.Instance.mCurrentPosition);
+            var lPlayerPosition = Player.Instance.mCurrentPosition;
+            Enemy lTarget = SpatialGrid.Instance.GetClosestEnemyInGrid(lPlayerPosition);
 
             if (lTarget == null) return;
 
-            Vector3 lDirection = (lTarget.transform.position - Player.Instance.mCurrentPosition).normalized;
-            Projectile lProjectile = ProjectilePool.Instance.GetProjectile();
-            lProjectile.transform.position = Player.Instance.mCurrentPosition;
-
+            Vector3 lDirection = (lTarget.transform.position - lPlayerPosition).normalized;
+            Projectile lProjectile = ProjectileManager.Instance.GetProjectile(mData.mProjectilePrefab, lPlayerPosition);
             lProjectile.Init(lDirection, mDamage * Player.Instance.Damage);
-            lProjectile.gameObject.SetActive(true);
         }
     }
 }
