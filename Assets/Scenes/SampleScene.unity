@@ -401,6 +401,50 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 193232237}
   m_CullTransparentMesh: 1
+--- !u!1 &383757053
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 383757055}
+  - component: {fileID: 383757054}
+  m_Layer: 0
+  m_Name: ProjectileManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &383757054
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 383757053}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c2b4156f265ccb42bcf9c78ad084412, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Roguelike.ProjectileManager
+--- !u!4 &383757055
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 383757053}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.20116, y: -1.80309, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &468480611
 GameObject:
   m_ObjectHideFlags: 0
@@ -2179,8 +2223,17 @@ MonoBehaviour:
       inWeight: 0.33333334
       outWeight: 0.3173228
     - serializedVersion: 3
-      time: 0.7056871
-      value: 5.7785254
+      time: 49.63083
+      value: 6.869894
+      inSlope: 0.0028318292
+      outSlope: 0.0028318292
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.99830353
+    - serializedVersion: 3
+      time: 65.625626
+      value: 20.685692
       inSlope: 0
       outSlope: 0
       tangentMode: 0
@@ -2188,8 +2241,8 @@ MonoBehaviour:
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
-      time: 1.7996184
-      value: 4.5193768
+      time: 82.93843
+      value: 38.676056
       inSlope: 0.01005916
       outSlope: 0.01005916
       tangentMode: 0
@@ -2197,17 +2250,8 @@ MonoBehaviour:
       inWeight: 0.33333334
       outWeight: 0.91513586
     - serializedVersion: 3
-      time: 3.933458
-      value: 9.054543
-      inSlope: -0.013085168
-      outSlope: -0.013085168
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.24731761
-    - serializedVersion: 3
-      time: 7.0050144
-      value: 3.8889961
+      time: 120.493034
+      value: 8.067123
       inSlope: 0.015221433
       outSlope: 0.015221433
       tangentMode: 0
@@ -2215,8 +2259,8 @@ MonoBehaviour:
       inWeight: 0.17588006
       outWeight: 0.33333334
     - serializedVersion: 3
-      time: 12.205671
-      value: 10.046602
+      time: 161.22188
+      value: 52.51477
       inSlope: 0.051054344
       outSlope: 0.051054344
       tangentMode: 0
@@ -2224,8 +2268,8 @@ MonoBehaviour:
       inWeight: 0.33333334
       outWeight: 0.13697486
     - serializedVersion: 3
-      time: 15.539936
-      value: 16.77208
+      time: 214.29974
+      value: 31.428955
       inSlope: 0.115640454
       outSlope: 0.115640454
       tangentMode: 0
@@ -2233,8 +2277,8 @@ MonoBehaviour:
       inWeight: 0.33333334
       outWeight: 0.88804257
     - serializedVersion: 3
-      time: 18.143124
-      value: 13.13243
+      time: 272.1029
+      value: 61.033417
       inSlope: -0.0059476835
       outSlope: -0.0059476835
       tangentMode: 0
@@ -2242,8 +2286,8 @@ MonoBehaviour:
       inWeight: 0.33333334
       outWeight: 0.1978137
     - serializedVersion: 3
-      time: 21.570068
-      value: 24.324059
+      time: 304.92307
+      value: 97.10989
       inSlope: 0
       outSlope: 0
       tangentMode: 0
@@ -2821,52 +2865,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1958806463
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1958806465}
-  - component: {fileID: 1958806464}
-  m_Layer: 0
-  m_Name: FireWandPool
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1958806464
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1958806463}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1c9d2609e80be9f4f9950d758606fd91, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Roguelike.FireWandPool
-  mProjectilePrefab: {fileID: 157765932926480156, guid: ed7335cd2842a9848a53efd517e0288c, type: 3}
-  mPoolSize: 200
---- !u!4 &1958806465
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1958806463}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.20116, y: -1.80309, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -2885,4 +2883,4 @@ SceneRoots:
   - {fileID: 602049298}
   - {fileID: 1900328017}
   - {fileID: 934926462}
-  - {fileID: 1958806465}
+  - {fileID: 383757055}

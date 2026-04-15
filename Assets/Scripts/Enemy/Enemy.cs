@@ -24,8 +24,15 @@ namespace Roguelike
         private int mGlobalUpdateIndex = 0;
         private int mInstanceUpdateOrder;
 
+        private SpriteRenderer mRenderer;
+        private Coroutine mFlashCoroutine;
+        [SerializeField] private Color mHitColor = Color.red;
+        [SerializeField] private float mFlashDuration = 0.1f;
+
         public void Init(Transform pTarget)
         {
+            mRenderer = GetComponent<SpriteRenderer>();
+
             mTarget = pTarget;
             Health = 50f;
             Speed = 1f;
@@ -40,6 +47,14 @@ namespace Roguelike
         public void TakeDamage(float pDamage)
         {
             Health -= pDamage;
+
+            if (mFlashCoroutine != null)
+            {
+                StopCoroutine(mFlashCoroutine);
+            }
+
+            mFlashCoroutine = StartCoroutine(FlashRoutine());
+
 
             if (Health <= 0)
             {
@@ -141,10 +156,21 @@ namespace Roguelike
             }
         }
 
+        private System.Collections.IEnumerator FlashRoutine()
+        {
+            mRenderer.color = mHitColor;
+            yield return new WaitForSeconds(mFlashDuration);
+            mRenderer.color = Color.white;
+            mFlashCoroutine = null;
+        }
+
         void OnEnable()
         {
             mIsDead = false;
             mInstanceUpdateOrder = mGlobalUpdateIndex++;
+
+            if (mRenderer != null) mRenderer.color = Color.white;
+            mFlashCoroutine = null;
         }
     }
 }

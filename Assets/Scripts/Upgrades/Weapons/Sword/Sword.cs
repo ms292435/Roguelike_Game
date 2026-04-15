@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.VFX;
 
 namespace Roguelike
 {
@@ -20,14 +21,15 @@ namespace Roguelike
         private Vector3 mCurrentPosition;
         private Vector3 mAttackOffset = new(2f, 0f, 0f);
 
+        private int mAttackCount;
         public void Initialize(WeaponUpgradeData pData)
         {
             mData = pData;
+            mAttackCount = 3;
         }
         public void Attack()
         {
-            int lAttackCount = 4;
-            PerformCircularAttack(lAttackCount);
+            PerformCircularAttack(mAttackCount);
         }
 
         private void PerformCircularAttack(int pCount)
@@ -36,21 +38,22 @@ namespace Roguelike
 
             for (int i = 0; i < pCount; i++)
             {
-                // Calcul de l'angle : On part de PI, et on ajoute une fraction de cercle (2*PI / nombre d'attaques)
+                // Compute angle for this attack (evenly spaced around the circle)
                 float lAngle = Mathf.PI + (i * (Mathf.PI * 2f / pCount));
 
-                // Conversion coordonnées polaires -> cartésiennes (x, y)
+                // Convert polar coordinates to Cartesian
                 float lX = Mathf.Cos(lAngle) * lRadius;
                 float lY = Mathf.Sin(lAngle) * lRadius;
 
                 Vector3 lAttackPos = mCurrentPosition + new Vector3(lX, lY, 0);
 
-                // Rotation du VFX pour qu'il "regarde" vers l'extérieur du cercle
+                // Rotate the VFX to face outward
                 float lAngleDeg = lAngle * Mathf.Rad2Deg;
                 Quaternion lRotation = Quaternion.Euler(0, 0, lAngleDeg);
 
-                // Instanciation et Dégâts
-                Instantiate(mSlashVfxPrefab, lAttackPos, lRotation);
+                // Instantiation and Damage
+                MeleeAttacksManager.Instance.GetVfx(mSlashVfxPrefab, lAttackPos, lRotation);
+
                 ApplyDamageAtPosition(lAttackPos);
             }
         }
