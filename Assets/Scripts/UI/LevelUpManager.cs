@@ -24,6 +24,7 @@ namespace Roguelike
 
         private int mCurrentLevel = 1;
 
+        private readonly Dictionary<UpgradeData, System.Action> mPendingActions = new();
         public void OnNotify(ISubject pSubject, string pEventName)
         {
             if (pEventName == "LevelUp")
@@ -52,6 +53,7 @@ namespace Roguelike
 
         public void ShowUpgradeOptions(List<UpgradeData> pChoices)
         {
+            mPendingActions.Clear();
             foreach (Transform lChild in mUpgradeUIContainer)
             {
                 Destroy(lChild.gameObject);
@@ -60,7 +62,23 @@ namespace Roguelike
             foreach (UpgradeData lData in pChoices)
             {
                 GameObject lGameObject = Instantiate(mUpgradeButtonPrefab, mUpgradeUIContainer);
-                lGameObject.GetComponent<UpgradeUIElement>().Setup(lData, this);
+                var lUIElement = lGameObject.GetComponent<UpgradeUIElement>();
+
+                string lDisplayDescription = lData.Description;
+
+                if (lData is WeaponUpgradeData lWeaponData)
+                {
+                    var lExisting = WeaponManager.Instance.mEquippedWeapons
+                                    .FirstOrDefault(w => w.Data == lWeaponData);
+
+                    if (lExisting != null)
+                    {
+                        var lProposal = lExisting.GetNextUpgradeProposal();
+                        lDisplayDescription = lProposal.Description;
+                        mPendingActions[lData] = lProposal.ApplyAction;
+                    }
+                }
+                lUIElement.Setup(lData, this, lDisplayDescription);
             }
 
             mLevelUpPanel.SetActive(true);
@@ -69,7 +87,11 @@ namespace Roguelike
 
         public void ApplyUpgrade(UpgradeData pData)
         {
-            if (pData is StatBoostData lStatBoost)
+            if (mPendingActions.ContainsKey(pData))
+            {
+                mPendingActions[pData].Invoke();
+            }
+            else if (pData is StatBoostData lStatBoost)
             {
                 switch (lStatBoost.type)
                 {
@@ -98,9 +120,16 @@ namespace Roguelike
             return mAllAvailableUpgrades
             .Where(lUpgrade =>
             {
-                if (!(lUpgrade is WeaponUpgradeData lWeaponData)) return true;
+                if (lUpgrade is WeaponUpgradeData lWeaponData)
+                {
+                    // Search if we already have this weapon equipped
+                    var lEquipped = WeaponManager.Instance.mEquippedWeapons
+                                    .FirstOrDefault(w => w.Data == lWeaponData);
 
-                return !WeaponManager.Instance.mEquippedWeapons.Any(lWeapon => lWeapon.Data == lWeaponData);
+                    // Keep it only if we don't have it or if it's not max level yet
+                    return lEquipped == null || lEquipped.WeaponLevel < lWeaponData.MaxLevel;
+                }
+                return true;
             })
             .OrderBy(l => Random.value)
             .Take(pCount)

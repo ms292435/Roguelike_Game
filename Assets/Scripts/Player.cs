@@ -72,7 +72,7 @@ namespace Roguelike
             while (CurrentXP >= MaxXP)
             {
                 CurrentXP -= MaxXP;
-                MaxXP = Mathf.Round(MaxXP * 1.5f); 
+                MaxXP = Mathf.Round(MaxXP * 1.1f); 
                 Notify("LevelUp"); 
             }
             Notify("Experience"); 

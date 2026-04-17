@@ -15,13 +15,13 @@ namespace Roguelike
 
         private LevelUpManager mManager;
 
-        public void Setup(UpgradeData pData, LevelUpManager pManager)
+        public void Setup(UpgradeData pData, LevelUpManager pManager, string pDescription = null)
         {
             mAssignedData = pData;
             mManager = pManager;
 
             mTitleText.text = pData.Name;
-            mDescriptionText.text = pData.Description;
+            mDescriptionText.text = !string.IsNullOrEmpty(pDescription) ? pDescription : pData.Description; 
             mIconImage.sprite = pData.Icon;
         }
 

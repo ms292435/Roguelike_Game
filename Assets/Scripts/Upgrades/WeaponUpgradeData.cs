@@ -9,5 +9,6 @@ namespace Roguelike
         public GameObject mWeaponLogicPrefab;
         public GameObject mProjectilePrefab;
         public string Type;
+        public int MaxLevel = 10;
     }
 }

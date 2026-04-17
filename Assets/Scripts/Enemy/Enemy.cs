@@ -46,6 +46,8 @@ namespace Roguelike
 
         public void TakeDamage(float pDamage)
         {
+            if (mIsDead || !gameObject.activeInHierarchy) return;
+
             Health -= pDamage;
 
             if (mFlashCoroutine != null)
