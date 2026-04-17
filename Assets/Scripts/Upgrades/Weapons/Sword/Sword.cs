@@ -57,7 +57,7 @@ namespace Roguelike
                 // Instantiation and Damage
                 SwordSlash lVfxInstance = MeleeAttacksManager.Instance.GetVfx(mSlashVfxPrefab, lAttackPos, lRotation);
                 lVfxInstance.transform.localScale = new Vector3(3, 3, 1) * mVisualScaleMultiplier;
-                
+
                 ApplyDamageAtPosition(lAttackPos);
             }
         }
@@ -94,16 +94,16 @@ namespace Roguelike
 
         public WeaponUpgradeProposal GetNextUpgradeProposal()
         {
-            int lRandomChoice = Random.Range(0, 0);
+            int lRandomChoice = Random.Range(0, 3);
             var lProposal = new WeaponUpgradeProposal();
 
             switch (lRandomChoice)
             {
-                //case 0:
-                //    lProposal.Description = "Damage +20%";
-                //    lProposal.ApplyAction = () => { mDamage *= 1.2f; WeaponLevel++; };
-                //    break;
                 case 0:
+                    lProposal.Description = "Damage +20%";
+                    lProposal.ApplyAction = () => { mDamage *= 1.2f; WeaponLevel++; };
+                    break;
+                case 1:
                     lProposal.Description = "Range +15%";
                     lProposal.ApplyAction = () =>
                     {
@@ -113,10 +113,10 @@ namespace Roguelike
                         WeaponLevel++;
                     };
                     break;
-                //case 2:
-                //    lProposal.Description = "+1 Attack";
-                //    lProposal.ApplyAction = () => { mAttackCount++; WeaponLevel++; };
-                //    break;
+                case 2:
+                    lProposal.Description = "+1 Attack";
+                    lProposal.ApplyAction = () => { mAttackCount++; WeaponLevel++; };
+                    break;
             }
             return lProposal;
         }
