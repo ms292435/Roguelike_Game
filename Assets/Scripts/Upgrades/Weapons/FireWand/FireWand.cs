@@ -43,20 +43,6 @@ namespace Roguelike
             lProjectile.Init(lDirection, mDamage * Player.Instance.Damage);
         }
 
-        public void Upgrade()
-        {
-            WeaponLevel++;
-            int lRandomChoice = Random.Range(0, 3);
-
-            switch (lRandomChoice)
-            {
-                case 0: mDamage *= 1.25f; break;
-                case 1: mFireRate *= 0.85f; break;
-                case 2:
-                    break;
-            }
-        }
-
         public WeaponUpgradeProposal GetNextUpgradeProposal()
         {
             int lRandomChoice = Random.Range(0, 2);
