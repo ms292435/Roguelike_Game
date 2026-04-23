@@ -57,7 +57,7 @@ namespace Roguelike
         {
             if (Instance != null && Instance != this)
             {
-                Destroy(this);
+                Destroy(gameObject);
                 return;
             }
             Instance = this;
@@ -70,6 +70,14 @@ namespace Roguelike
                 Enemy lEnemy = Instantiate(mEnemyPrefab).GetComponent<Enemy>();
                 lEnemy.gameObject.SetActive(false);
                 mInactives.Push(lEnemy);
+            }
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
             }
         }
 

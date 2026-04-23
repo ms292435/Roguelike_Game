@@ -38,8 +38,21 @@ namespace Roguelike
 
         void Awake()
         {
-            if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+            if (Instance != null && Instance != this)
+            { 
+                Destroy(gameObject); 
+                return; 
+            }
             Instance = this;
+            mPools.Clear();
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
         }
     }
 }

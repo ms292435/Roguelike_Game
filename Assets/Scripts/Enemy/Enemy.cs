@@ -19,10 +19,11 @@ namespace Roguelike
         private readonly float mTiltSpeed = 5f;    // Tilt speed
 
         private readonly float mSeparationRadius = 1f; // Min distance to maintain from other enemies
-        private readonly float mSeparationStrength = 10f; // Push strength to maintain separation
 
         private int mGlobalUpdateIndex = 0;
         private int mInstanceUpdateOrder;
+
+        private Vector3 mSmoothedSeparation;
 
         private SpriteRenderer mRenderer;
         private Coroutine mFlashCoroutine;
@@ -82,24 +83,37 @@ namespace Roguelike
             mCurrentPosition = transform.position;
             var lTargetPosition = mTarget.position;
 
-            Vector3 lDirection = (lTargetPosition - mCurrentPosition).normalized;
-            mCurrentPosition += Speed * Time.deltaTime * lDirection;
-
-            SpatialGrid.Instance.UpdateEnemyPosition(this, mLastPosition, mCurrentPosition);
-            mLastPosition = mCurrentPosition;
+            // Compute the base direction towards the player
+            Vector3 lTargetDirection = (lTargetPosition - mCurrentPosition).normalized;
 
             if ((Time.frameCount + mInstanceUpdateOrder) % 4 == 0) // Spread separation calculations over 4 frames to reduce CPU load
             {
                 HandleSeparation();
             }
 
+            // Interpolate the separation force to prevent jittering and teleporting effects
+            mSmoothedSeparation = Vector3.Lerp(mSmoothedSeparation, mSeparationForce, Time.deltaTime * 10f);
+
+            // Combine target seeking and separation. 
+            // Separation is weighted heavily (x4.0) to prioritize avoiding neighbors and prevent clumping
+            Vector3 lFinalDirection = (lTargetDirection + (mSmoothedSeparation * 4.0f)).normalized;
+
+            // Apply movement using the strict base speed to maintain a steady, fluid horde pace
+            mCurrentPosition += Speed * Time.deltaTime * lFinalDirection;
+
+            // Update the enemy's position within the spatial grid for accurate neighbor detection
+            SpatialGrid.Instance.UpdateEnemyPosition(this, mLastPosition, mCurrentPosition);
+            mLastPosition = mCurrentPosition;
             transform.position = mCurrentPosition;
 
+            // Apply a procedural tilt effect based on time to animate the sprite
             float lTilt = Mathf.Sin((Time.time + mAnimationOffset) * mTiltSpeed) * mTiltAngle;
             transform.rotation = Quaternion.Euler(0, 0, lTilt);
 
+            // Check if the enemy reached the target (using squared magnitude to avoid expensive square root operations)
             if ((mCurrentPosition - lTargetPosition).sqrMagnitude < 0.25f) // 0.5f * 0.5f
             {
+                Player.Instance.Health -= 5;
                 Die();
             }
         }
@@ -120,6 +134,7 @@ namespace Roguelike
         {
             SpatialGrid lGrid = SpatialGrid.Instance;
             Vector2Int lGridPosition = lGrid.GetGridPos(mCurrentPosition);
+
             mSeparationForce = Vector3.zero;
 
             int lGx = lGridPosition.x;
@@ -136,7 +151,11 @@ namespace Roguelike
                     HandleNeighbors(lNeighbors);
                 }
             }
-            mCurrentPosition += (mSeparationStrength * 4f) * Time.deltaTime * mSeparationForce;
+
+            if (mSeparationForce.sqrMagnitude > 1f)
+            {
+                mSeparationForce.Normalize();
+            }
         }
 
         private void HandleNeighbors(HashSet<Enemy> pNeighbors)
@@ -170,6 +189,7 @@ namespace Roguelike
         {
             mIsDead = false;
             mInstanceUpdateOrder = mGlobalUpdateIndex++;
+            mSmoothedSeparation = Vector3.zero;
 
             if (mRenderer != null) mRenderer.color = Color.white;
             mFlashCoroutine = null;

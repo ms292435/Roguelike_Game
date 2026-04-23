@@ -23,6 +23,8 @@ namespace Roguelike
 
         private readonly List<IObserver> mObservers = new();
 
+        private bool mIsDead = false;
+
         public void AddObserver(IObserver pObserver) => mObservers.Add(pObserver);
 
         public void RemoveObserver(IObserver pObserver) => mObservers.Remove(pObserver);
@@ -67,6 +69,12 @@ namespace Roguelike
 
         public void AddExperience(float pAmount)
         {
+            if (MaxXP <= 0)
+            {
+                Debug.LogError("ERROR: MaxXP must be greater than 0 to add experience!");
+                return;
+            }
+
             CurrentXP += pAmount;
 
             while (CurrentXP >= MaxXP)
@@ -82,14 +90,17 @@ namespace Roguelike
         {
             if (Instance != null && Instance != this)
             {
-                Destroy(this);
+                Destroy(gameObject);
                 return;
             }
             Instance = this;
-            Health = 100f;
-            Damage = 1f;
+
+            mIsDead = false;
+            Health = 500f;
+            Damage = 100f;
             Speed = 4f;
-            MaxXP = 1f;
+            MaxXP = 10f;
+            CurrentXP = 0f;
         }
 
         void Start()
@@ -100,8 +111,24 @@ namespace Roguelike
 
         void Update()
         {
+            if (mIsDead) return;
+
             mCurrentPosition = transform.position;
             WeaponManager.Instance.UpdateWeapons();
+
+            if (Health <= 0)
+            {
+                mIsDead = true;
+                GameManager.Instance.DisplayGameOver();
+            }
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
         }
     }
 }

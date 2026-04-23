@@ -48,6 +48,15 @@ namespace Roguelike
                 return;
             }
             Instance = this;
+            mPools.Clear();
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
         }
     }
 }

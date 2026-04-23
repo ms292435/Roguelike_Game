@@ -60,7 +60,7 @@ namespace Roguelike
         {
             if (Instance != null && Instance != this)
             {
-                Destroy(this);
+                Destroy(gameObject);
                 return;
             }
             Instance = this;
@@ -76,6 +76,14 @@ namespace Roguelike
                 mTotalCreated++;
             }
 
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
         }
 
         void OnGUI()

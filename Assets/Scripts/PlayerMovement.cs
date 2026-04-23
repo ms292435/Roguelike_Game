@@ -7,7 +7,6 @@ namespace Roguelike
         private PlayerControls mControls;
         private Vector2 mMovementInput;
 
-        [SerializeField] private float mMoveSpeed = 5f;
         private Rigidbody2D mRigidbody;
         private void Awake()
         {
@@ -25,7 +24,7 @@ namespace Roguelike
 
         private void FixedUpdate()
         {
-            mRigidbody.linearVelocity = mMovementInput * mMoveSpeed;
+            mRigidbody.linearVelocity = mMovementInput * Player.Instance.Speed;
         }
     }
 }

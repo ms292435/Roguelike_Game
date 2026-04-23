@@ -210,10 +210,20 @@ namespace Roguelike
         {
             if (Instance != null && Instance != this)
             {
-                Destroy(this);
+                Destroy(gameObject);
                 return;
             }
             Instance = this;
+            mGrid.Clear();
+            mExperienceGrid.Clear();
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
         }
     }
 }

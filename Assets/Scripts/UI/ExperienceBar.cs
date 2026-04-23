@@ -29,12 +29,19 @@ namespace Roguelike
         {
             if (Instance != null && Instance != this)
             {
-                Destroy(this);
+                Destroy(gameObject);
                 return;
             }
             Instance = this;
         }
 
+        void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
         void Start()
         {
             Player.Instance.AddObserver(this);

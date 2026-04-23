@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 
 namespace Roguelike
@@ -25,6 +26,8 @@ namespace Roguelike
         private int mCurrentLevel = 1;
 
         private readonly Dictionary<UpgradeData, System.Action> mPendingActions = new();
+
+        private static float mMaxCameraDezoom = 30f;
         public void OnNotify(ISubject pSubject, string pEventName)
         {
             if (pEventName == "LevelUp")
@@ -46,8 +49,11 @@ namespace Roguelike
             if (mCurrentLevel % 2 == 0)
             {
                 StopAllCoroutines(); // Avoid multiple zooms stacking if the player levels up multiple times quickly
-                float lTargetSize = mCamera.m_Lens.OrthographicSize * 1.15f; // +15% dezoom
-                StartCoroutine(SlowZoomRoutine(lTargetSize, 5.0f)); // 5.0f = seconds 
+                if (mCamera.m_Lens.OrthographicSize < mMaxCameraDezoom)
+                {
+                    float lTargetSize = mCamera.m_Lens.OrthographicSize * 1.15f; // +15% dezoom
+                    StartCoroutine(SlowZoomRoutine(lTargetSize, 5.0f)); // 5.0f = seconds 
+                }
             }
         }
 
@@ -161,7 +167,7 @@ namespace Roguelike
         {
             if (Instance != null && Instance != this)
             {
-                Destroy(this.gameObject);
+                Destroy(gameObject);
             }
             else
             {
@@ -170,7 +176,13 @@ namespace Roguelike
             if (mLevelText != null)
                 mLevelText.text = $"Level: {mCurrentLevel}";
         }
-
+        void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
         void Start()
         {
             Player.Instance.AddObserver(this);
