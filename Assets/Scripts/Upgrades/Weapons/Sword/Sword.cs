@@ -10,9 +10,11 @@ namespace Roguelike
         public float mAttackInterval = 1f;
         public float mAttackRadius = 1.5f;
 
+        public int WeaponLevel { get; set; }
+
         public WeaponUpgradeData Data => mData;
 
-        public int WeaponLevel { get; set; }
+        public AudioClip AttackSound => mAttackSound;
 
         [Header("Visuals")]
         public GameObject mSlashVfxPrefab;
@@ -25,6 +27,9 @@ namespace Roguelike
         private Vector3 mCurrentPosition;
         private Vector3 mAttackOffset = new(2f, 0f, 0f);
         private int mAttackCount;
+
+        [SerializeField] private AudioClip mAttackSound;
+
         public void Initialize(WeaponUpgradeData pData)
         {
             mData = pData;
@@ -62,7 +67,7 @@ namespace Roguelike
             }
         }
 
-        public void UpdateWeapon(float pDeltaTime)
+        public bool UpdateWeapon(float pDeltaTime)
         {
             mCurrentPosition = transform.position;
             mTimer += pDeltaTime;
@@ -71,7 +76,9 @@ namespace Roguelike
             {
                 Attack();
                 mTimer = 0f;
+                return true; // Attack performed
             }
+            return false; // No attack this frame
         }
 
         private void ApplyDamageAtPosition(Vector3 pPosition)

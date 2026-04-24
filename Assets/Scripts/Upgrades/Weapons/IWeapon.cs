@@ -8,10 +8,12 @@ namespace Roguelike
     {
         WeaponUpgradeData Data { get; }
 
+        AudioClip AttackSound { get; }
+
         int WeaponLevel { get; set; }
 
         public void Attack();
-        public void UpdateWeapon(float pDeltaTime);
+        public bool UpdateWeapon(float pDeltaTime);
         public void Initialize(WeaponUpgradeData pData);
         WeaponUpgradeProposal GetNextUpgradeProposal();
     }

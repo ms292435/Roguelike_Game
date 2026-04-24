@@ -48,3 +48,4 @@ MonoBehaviour:
   mAttackInterval: 1
   mAttackRadius: 2
   mSlashVfxPrefab: {fileID: 4287518683449023797, guid: 4c44645261b18df4fb80f7cbb8254b7f, type: 3}
+  mAttackSound: {fileID: 8300000, guid: 590b5ad255465a44f944699f5dff4fe9, type: 3}

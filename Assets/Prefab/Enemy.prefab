@@ -105,3 +105,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mCurrentPosition: {x: 0, y: 0, z: 0}
+  mDeathSound: {fileID: 8300000, guid: 51681cf4458623844a35ba75a85ec2a1, type: 3}
+  mHitColor: {r: 1, g: 0, b: 0, a: 1}
+  mFlashDuration: 0.1

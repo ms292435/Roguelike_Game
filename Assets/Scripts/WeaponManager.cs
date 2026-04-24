@@ -52,7 +52,13 @@ namespace Roguelike
 
             foreach (var lWeapon in mEquippedWeapons)
             {
-                lWeapon.UpdateWeapon(lDeltaTime);
+                // UpdateWeapon will return true if the weapon has performed an attack during this update cycle
+                bool lHasAttacked = lWeapon.UpdateWeapon(lDeltaTime);
+
+                if (lHasAttacked)
+                {
+                    AudioManager.Instance.PlayWeaponSound(lWeapon.AttackSound);
+                }
             }
         }
 

@@ -15,12 +15,16 @@ namespace Roguelike
         private float mFireRate = 0.5f;
         private float mFireTimer = 0f;
 
+        [SerializeField] private AudioClip mAttackSound;
+
+        public AudioClip AttackSound => mAttackSound;
+
         public void Initialize(WeaponUpgradeData pData)
         {
             mData = pData;
         }
 
-        public void UpdateWeapon(float pDeltaTime)
+        public bool UpdateWeapon(float pDeltaTime)
         {
             mFireTimer += pDeltaTime;
 
@@ -28,7 +32,9 @@ namespace Roguelike
             {
                 Attack();
                 mFireTimer = 0f;
+                return true; // Attack performed
             }
+            return false; // No attack this frame
         }
 
         public void Attack()

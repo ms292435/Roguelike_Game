@@ -7,6 +7,8 @@ namespace Roguelike
     {
         public Vector3 mCurrentPosition;
 
+        public AudioClip mDeathSound;
+
         private Vector3 mLastPosition;
         private Vector3 mSeparationForce;
 
@@ -68,6 +70,12 @@ namespace Roguelike
         public void Die()
         {
             if (mIsDead) return;
+
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlayEnemyDeathSound(mDeathSound);
+            }
+
             SpatialGrid.Instance.RemoveEnemy(this, SpatialGrid.Instance.GetGridPos(transform.position));
             mIsDead = true;
 
