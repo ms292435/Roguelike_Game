@@ -96,7 +96,7 @@ namespace Roguelike
             Instance = this;
 
             mIsDead = false;
-            Health = 500f;
+            Health = 50000f;
             Damage = 100f;
             Speed = 4f;
             MaxXP = 10f;

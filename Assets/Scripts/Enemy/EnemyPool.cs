@@ -38,6 +38,7 @@ namespace Roguelike
                 mActiveEnemiesList.RemoveAt(lastIndex);
             }
             mInactives.Push(pEnemy);
+            GameManager.Instance.Score += 1;
         }
 
         public int GetActiveEnemyCount()

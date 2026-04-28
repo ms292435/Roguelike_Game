@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -10,12 +11,17 @@ namespace Roguelike
         [SerializeField] private GameObject mGameOverPanel;
 
         public static GameManager Instance { get; private set; }
+        public int Score { get; set; } = 0;
+
+        public TextMeshProUGUI mScoreText;
 
         private static bool mSkipMainMenu = false;
 
         public void DisplayGameOver()
         {
             if (mGameOverPanel != null) mGameOverPanel.SetActive(true);
+
+            mScoreText.text = $"Score: {Score}";
             // Stop time to freeze the game when game over is displayed
             Time.timeScale = 0f;
         }
@@ -69,6 +75,5 @@ namespace Roguelike
                 Instance = null;
             }
         }
-
     }
 }

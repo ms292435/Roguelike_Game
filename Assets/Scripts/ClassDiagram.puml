@@ -1,6 +1,11 @@
 ﻿@startuml
-class AttackVfx {
-    + DestroyVfx() : void
+class AudioManager {
+    - mWeaponSource : AudioSource
+    - mEnemiesSource : AudioSource
+    - mLastDeathSoundTime : float
+    - Awake() : void
+    + PlayEnemyDeathSound(pClip : AudioClip) : void
+    + PlayWeaponSound(pClip : AudioClip) : void
 }
 class Entity <<abstract>> {
     + Health : float { get; set; }
@@ -15,12 +20,25 @@ class EntityBase <<abstract>> {
     + GetPosY() : float
     + SetPosY(pValue : float) : void
 }
+class GameManager {
+    - mMainMenuPanel : GameObject
+    - mGameOverPanel : GameObject
+    + mScoreText : TextMeshProUGUI
+    + Score : int { get; set; }
+    + DisplayGameOver() : void
+    + StartGame() : void
+    - ShowMainMenu() : void
+}
 class InfiniteMap {
     + mTilePrefab : GameObject
     - mCurrentChunk : Vector2Int
     - UpdateGrid() : void
     - GetTileToPlace(List<Vector2Int> : ref) : GameObject
     - GetChunkCoords(pPos : Vector3) : Vector2Int
+}
+class MeleeAttacksManager {
+    + GetVfx(pPrefab : GameObject, pPosition : Vector3, pRotation : Quaternion) : SwordSlash
+    + ReturnToPool(pSlash : SwordSlash) : void
 }
 class Player {
     + mExperienceBar : ExperienceBar
@@ -32,6 +50,20 @@ class Player {
     + Notify(pEventName : string) : void
     + EquipWeapon(pWeaponData : WeaponUpgradeData) : void
     + AddExperience(pAmount : float) : void
+}
+class PlayerMovement {
+    - mControls : PlayerControls
+    - mMovementInput : Vector2
+    - mRigidbody : Rigidbody2D
+    - Awake() : void
+    - OnEnable() : void
+    - OnDisable() : void
+    - Update() : void
+    - FixedUpdate() : void
+}
+class ProjectileManager {
+    + GetProjectile(pPrefab : GameObject, pPosition : Vector3) : Projectile
+    + ReturnToPool(pProjectile : Projectile) : void
 }
 class SpatialGrid {
     + GetGridPos(pWorldPos : Vector3) : Vector2Int
@@ -57,11 +89,15 @@ class WeaponManager {
 }
 class Enemy {
     + mCurrentPosition : Vector3
+    + mDeathSound : AudioClip
     - mLastPosition : Vector3
     - mSeparationForce : Vector3
     - mTarget : Transform
     - mAnimationOffset : float
     - mInstanceUpdateOrder : int
+    - mSmoothedSeparation : Vector3
+    - mRenderer : SpriteRenderer
+    - mFlashCoroutine : Coroutine
     + Init(pTarget : Transform) : void
     + TakeDamage(pDamage : float) : void
     + Die() : void
@@ -75,6 +111,7 @@ class EnemyPool {
     + GetEnemy() : Enemy
     + ReturnEnemy(pEnemy : Enemy) : void
     + GetActiveEnemyCount() : int
+    - OnGUI() : void
 }
 class EnemySpawner {
     + mDifficultyCurve : AnimationCurve
@@ -103,19 +140,15 @@ class IObserver <<interface>> {
 }
 class ISubject <<interface>> {
 }
-class Projectile {
+class Projectile <<abstract>> {
     - mDirection : Vector3
+    - mSpawnPosition : Vector3
     - mDamage : float
-    - mSpawnPosition : float
+    + OriginPrefab : GameObject { get; set; }
     + Init(pDirection : Vector3, pDamage : float) : void
     - Move() : void
     - CheckCollision() : void
     - ReturnToPool() : void
-}
-class ProjectilePool {
-    + mProjectilePrefab : GameObject
-    + GetProjectile() : Projectile
-    + ReturnProjectile(pProjectile : Projectile) : void
 }
 class ExperienceBar {
     + mXpFill : Image
@@ -155,73 +188,75 @@ class UpgradeUIElement {
     - mIconImage : Image
     - mAssignedData : UpgradeData
     - mManager : LevelUpManager
-    + Setup(pData : UpgradeData, pManager : LevelUpManager) : void
+    + Setup(pData : UpgradeData, pManager : LevelUpManager, pDescription : string) : void
     + OnClickSelect() : void
 }
 class WeaponUpgradeData {
-    + mVisualPrefab : GameObject
+    + mWeaponLogicPrefab : GameObject
+    + mProjectilePrefab : GameObject
     + Type : string
-}
-class FireWand {
-    - mData : WeaponUpgradeData
-    + Initialize(pData : WeaponUpgradeData) : void
-    + UpdateWeapon(pDeltaTime : float) : void
-    + Attack() : void
 }
 class IWeapon <<interface>> {
     + Attack() : void
-    + UpdateWeapon(pDeltaTime : float) : void
+    + UpdateWeapon(pDeltaTime : float) : bool
     + Initialize(pData : WeaponUpgradeData) : void
+}
+class WeaponUpgradeProposal {
+    + Description : string
+}
+class FireWand {
+    - mData : WeaponUpgradeData
+    - mAttackSound : AudioClip
+    + WeaponLevel : int { get; set; }
+    + Initialize(pData : WeaponUpgradeData) : void
+    + UpdateWeapon(pDeltaTime : float) : bool
+    + Attack() : void
+    + GetNextUpgradeProposal() : WeaponUpgradeProposal
+}
+class FireWandProjectile {
 }
 class Sword {
     + mSlashVfxPrefab : GameObject
     - mTimer : float
     - mData : WeaponUpgradeData
     - mCurrentPosition : Vector3
+    - mAttackCount : int
+    - mAttackSound : AudioClip
+    + WeaponLevel : int { get; set; }
     + Initialize(pData : WeaponUpgradeData) : void
     + Attack() : void
     - PerformCircularAttack(pCount : int) : void
-    + UpdateWeapon(pDeltaTime : float) : void
+    + UpdateWeapon(pDeltaTime : float) : bool
     - ApplyDamageAtPosition(pPosition : Vector3) : void
+    + GetNextUpgradeProposal() : WeaponUpgradeProposal
 }
-MonoBehaviour <|-- AttackVfx
+class SwordSlash {
+    - mTimer : float
+    + OriginPrefab : GameObject { get; set; }
+}
 EntityBase <|-- Entity
-MonoBehaviour <|-- EntityBase
-MonoBehaviour <|-- InfiniteMap
 Entity <|-- Player
 ISubject <|.. Player
-MonoBehaviour <|-- SpatialGrid
-MonoBehaviour <|-- WeaponManager
 Entity <|-- Enemy
-MonoBehaviour <|-- EnemyPool
-MonoBehaviour <|-- EnemySpawner
-MonoBehaviour <|-- Experience
-MonoBehaviour <|-- ExperienceManager
-MonoBehaviour <|-- ExperiencePool
-MonoBehaviour <|-- Projectile
-MonoBehaviour <|-- ProjectilePool
-MonoBehaviour <|-- ExperienceBar
 IObserver <|.. ExperienceBar
-MonoBehaviour <|-- FpsCounter
-MonoBehaviour <|-- LevelUpManager
 IObserver <|.. LevelUpManager
 UpgradeData <|-- StatBoostData
 ScriptableObject <|-- UpgradeData
-MonoBehaviour <|-- UpgradeUIElement
 UpgradeData <|-- WeaponUpgradeData
-MonoBehaviour <|-- FireWand
 IWeapon <|.. FireWand
+Projectile <|-- FireWandProjectile
 MonoBehaviour <|-- Sword
 IWeapon <|.. Sword
+MeleeAttacksManager --> SwordSlash : parameter
 Player --> ExperienceBar : field
 Player --> IObserver : parameter
 Player --> WeaponUpgradeData : parameter
+ProjectileManager --> Projectile : parameter
 SpatialGrid --> Enemy : parameter
 SpatialGrid --> Experience : parameter
 WeaponManager --> WeaponUpgradeData : parameter
 EnemyPool --> Enemy : parameter
 ExperiencePool --> Experience : parameter
-ProjectilePool --> Projectile : parameter
 ExperienceBar --> ISubject : parameter
 ExperienceBar --> Player : parameter
 LevelUpManager --> ISubject : parameter
@@ -230,9 +265,9 @@ UpgradeUIElement --> UpgradeData : field
 UpgradeUIElement --> LevelUpManager : field
 UpgradeUIElement --> UpgradeData : parameter
 UpgradeUIElement --> LevelUpManager : parameter
+IWeapon --> WeaponUpgradeData : parameter
 FireWand --> WeaponUpgradeData : field
 FireWand --> WeaponUpgradeData : parameter
-IWeapon --> WeaponUpgradeData : parameter
 Sword --> WeaponUpgradeData : field
 Sword --> WeaponUpgradeData : parameter
 @enduml
