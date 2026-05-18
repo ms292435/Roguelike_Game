@@ -7,7 +7,7 @@ namespace Roguelike
     {
         public GameObject mEnemyPrefab;
 
-        public int EnemyPoolCount = 1000;
+        public int EnemyPoolCount = 10000;
 
         public static EnemyPool Instance { get; private set; }
 

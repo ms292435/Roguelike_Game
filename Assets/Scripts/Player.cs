@@ -99,7 +99,7 @@ namespace Roguelike
             Health = 50000f;
             Damage = 100f;
             Speed = 4f;
-            MaxXP = 10f;
+            MaxXP = 100000f;
             CurrentXP = 0f;
         }
 

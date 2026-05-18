@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 namespace Roguelike
 {
@@ -22,7 +23,7 @@ namespace Roguelike
 
         private readonly float mSeparationRadius = 1f; // Min distance to maintain from other enemies
 
-        private int mGlobalUpdateIndex = 0;
+        private static int mGlobalUpdateIndex = 0;
         private int mInstanceUpdateOrder;
 
         private Vector3 mSmoothedSeparation;
@@ -88,6 +89,8 @@ namespace Roguelike
         {
             if (mTarget == null) return;
 
+            Profiler.BeginSample("1_Enemy_Maths_Boids");
+
             mCurrentPosition = transform.position;
             var lTargetPosition = mTarget.position;
 
@@ -112,11 +115,19 @@ namespace Roguelike
             // Update the enemy's position within the spatial grid for accurate neighbor detection
             SpatialGrid.Instance.UpdateEnemyPosition(this, mLastPosition, mCurrentPosition);
             mLastPosition = mCurrentPosition;
-            transform.position = mCurrentPosition;
 
             // Apply a procedural tilt effect based on time to animate the sprite
             float lTilt = Mathf.Sin((Time.time + mAnimationOffset) * mTiltSpeed) * mTiltAngle;
-            transform.rotation = Quaternion.Euler(0, 0, lTilt);
+
+            Profiler.EndSample();
+
+            Profiler.BeginSample("2_Enemy_Apply_Transform");
+
+            transform.SetPositionAndRotation(mCurrentPosition, Quaternion.Euler(0, 0, lTilt));
+
+            Profiler.EndSample();
+
+            Profiler.BeginSample("3_Enemy_Collision_Check");
 
             // Check if the enemy reached the target (using squared magnitude to avoid expensive square root operations)
             if ((mCurrentPosition - lTargetPosition).sqrMagnitude < 0.25f) // 0.5f * 0.5f
@@ -124,6 +135,8 @@ namespace Roguelike
                 Player.Instance.Health -= 5;
                 Die();
             }
+
+            Profiler.EndSample();
         }
 
         private void SpawnExperience()

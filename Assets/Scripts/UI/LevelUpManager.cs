@@ -186,6 +186,7 @@ namespace Roguelike
         void Start()
         {
             Player.Instance.AddObserver(this);
+            mCamera.m_Lens.OrthographicSize = 30f; // Reset zoom at the start of the game
         }
     }
 }

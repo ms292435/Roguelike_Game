@@ -78,21 +78,21 @@ namespace Roguelike
             Vector2Int lCenterCell = GetGridPos(pPosition);
             float lSqrRadius = pRadius * pRadius;
 
-            // On calcule combien de cellules on doit vérifier autour du centre
+            // Compute how many cells we need to check in each direction based on the radius and cell size
             int lCellRange = Mathf.CeilToInt(pRadius / mCellSize);
 
             for (int x = -lCellRange; x <= lCellRange; x++)
             {
                 for (int y = -lCellRange; y <= lCellRange; y++)
                 {
-                    // On récupère les ennemis de la cellule via ta méthode existante
+                    // Get the enemies in the current cell
                     HashSet<Enemy> lCell = GetEnemiesInCell(lCenterCell.x + x, lCenterCell.y + y);
 
                     if (lCell != null)
                     {
                         foreach (Enemy lEnemy in lCell)
                         {
-                            // On vérifie la distance réelle entre le point et l'ennemi
+                            // Check if the enemy is within the radius by comparing squared distances to avoid unnecessary square root calculations
                             float lDistSqr = (pPosition - lEnemy.mCurrentPosition).sqrMagnitude;
 
                             if (lDistSqr <= lSqrRadius)
