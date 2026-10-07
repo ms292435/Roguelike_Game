@@ -70,8 +70,8 @@ namespace Roguelike
                 SwordSlash lVfxInstance = MeleeAttacksManager.Instance.GetVfx(mSlashVfxPrefab, lAttackPos, lRotation);
                 lVfxInstance.transform.localScale = new Vector3(3f, 3f, 1f) * mVisualScaleMultiplier;
 
-                // Deal area damage to ECS enemies via proxy bridge
-                DOTS.EnemyDamageProxy.DealDamage(lAttackPos, mAttackRadius, mDamage * Player.Instance.Damage);
+                // Deal area damage to ECS enemies via EnemyBridge facade
+                DOTS.EnemyBridge.DealDamage(lAttackPos, mAttackRadius, mDamage * Player.Instance.Damage);
             }
         }
 

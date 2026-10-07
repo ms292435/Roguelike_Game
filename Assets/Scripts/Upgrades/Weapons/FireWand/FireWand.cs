@@ -1,4 +1,3 @@
-using Unity.Entities;
 using UnityEngine;
 
 namespace Roguelike
@@ -45,72 +44,20 @@ namespace Roguelike
         }
 
         /// <summary>
-        /// Finds the closest enemy using the ECS spatial hash grid and launches a projectile towards it.
+        /// Finds the closest enemy using the EnemyBridge facade and launches a projectile towards it.
         /// </summary>
         public void Attack()
         {
             var lPlayerPosition = Player.Instance.mCurrentPosition;
 
-            Vector3 lTargetPos = GetClosestEnemyPositionECS(lPlayerPosition);
-            if (lTargetPos == Vector3.zero) return;
+            if (!DOTS.EnemyBridge.TryGetClosestEnemy(lPlayerPosition, mTargetRange, out Vector3 lTargetPos))
+            {
+                return;
+            }
 
             Vector3 lDirection = (lTargetPos - lPlayerPosition).normalized;
             Projectile lProjectile = ProjectileManager.Instance.GetProjectile(mData.mProjectilePrefab, lPlayerPosition);
             lProjectile.Init(lDirection, mDamage * Player.Instance.Damage);
-        }
-
-        /// <summary>
-        /// Queries the ECS unmanaged spatial hash grid to find the nearest enemy position within target range.
-        /// </summary>
-        /// <param name="pFrom">Origin position to search from (player position).</param>
-        /// <returns>The world position of the closest enemy, or Vector3.zero if none found.</returns>
-        private Vector3 GetClosestEnemyPositionECS(Vector3 pFrom)
-        {
-            var lWorld = Unity.Entities.World.DefaultGameObjectInjectionWorld;
-            if (lWorld == null) return Vector3.zero;
-
-            var lHashHandle = lWorld.Unmanaged.GetExistingUnmanagedSystem<DOTS.EnemyHashSystem>();
-            if (lHashHandle == SystemHandle.Null) return Vector3.zero;
-
-            ref var lHashSystem = ref lWorld.Unmanaged.GetUnsafeSystemRef<DOTS.EnemyHashSystem>(lHashHandle);
-            if (!lHashSystem.mSpatialGrid.IsCreated) return Vector3.zero;
-
-            float lCellSize = DOTS.EnemyHashSystem.CellSize;
-            Unity.Mathematics.float3 lFrom = pFrom;
-            lFrom.z = 0f;
-
-            Unity.Mathematics.int2 lCenterCell = new(
-                (int)Mathf.Floor(pFrom.x / lCellSize),
-                (int)Mathf.Floor(pFrom.y / lCellSize)
-            );
-
-            float lBestSqr = mTargetRange * mTargetRange;
-            Vector3 lBestPos = Vector3.zero;
-            int lCellRange = Mathf.CeilToInt(mTargetRange / lCellSize);
-
-            for (int x = -lCellRange; x <= lCellRange; x++)
-            {
-                for (int y = -lCellRange; y <= lCellRange; y++)
-                {
-                    var lCell = lCenterCell + new Unity.Mathematics.int2(x, y);
-                    if (lHashSystem.mSpatialGrid.TryGetFirstValue(lCell, out DOTS.EnemyGridData lData, out var lIt))
-                    {
-                        do
-                        {
-                            Unity.Mathematics.float3 lEp = lData.mPosition;
-                            lEp.z = 0f;
-                            float lSqr = Unity.Mathematics.math.lengthsq(lEp - lFrom);
-                            if (lSqr < lBestSqr)
-                            {
-                                lBestSqr = lSqr;
-                                lBestPos = new Vector3(lData.mPosition.x, lData.mPosition.y, 0f);
-                            }
-                        } while (lHashSystem.mSpatialGrid.TryGetNextValue(out lData, ref lIt));
-                    }
-                }
-            }
-
-            return lBestPos;
         }
 
         /// <summary>

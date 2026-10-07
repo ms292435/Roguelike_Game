@@ -5,6 +5,7 @@ using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Roguelike;
 
 namespace Roguelike.DOTS
 {
@@ -27,6 +28,8 @@ namespace Roguelike.DOTS
         /// </summary>
         private BatchMaterialID mMaterialID;
         private bool mInitialized;
+        private EntityQuery mEnemyQuery;
+        private EntityQuery mExperienceQuery;
 
         /// <summary>
         /// Initializes the system and sets up requirements.
@@ -36,6 +39,9 @@ namespace Roguelike.DOTS
             // Require spawner data and managed components to be present
             pState.RequireForUpdate<EnemySpawnerData>();
             pState.RequireForUpdate<EnemySpawnerManaged>();
+
+            mEnemyQuery = SystemAPI.QueryBuilder().WithAll<EnemySpeedComponent>().Build();
+            mExperienceQuery = SystemAPI.QueryBuilder().WithAll<ExperienceData>().Build();
         }
 
         /// <summary>
@@ -44,11 +50,55 @@ namespace Roguelike.DOTS
         /// </summary>
         public void OnUpdate(ref SystemState pState)
         {
-            // Maximum enemy cap to prevent performance degradation
-            int lMaxEnemyCount = 100000;
+            // --- Benchmark Clear Processing ---
+            if (BenchmarkController.ConsumeClearRequest())
+            {
+                pState.EntityManager.DestroyEntity(mEnemyQuery);
+                pState.EntityManager.DestroyEntity(mExperienceQuery);
+                EnemyCounterSystem.TotalEnemies = 0;
+                EnemyCounterSystem.VisibleEnemies = 0;
 
-            // Exit early if maximum enemy count is reached
-            if (EnemyCounterSystem.TotalEnemies >= lMaxEnemyCount) return;
+                var lHashHandle = pState.WorldUnmanaged.GetExistingUnmanagedSystem<EnemyHashSystem>();
+                if (lHashHandle != SystemHandle.Null)
+                {
+                    ref var lHashSystem = ref pState.WorldUnmanaged.GetUnsafeSystemRef<EnemyHashSystem>(lHashHandle);
+                    if (lHashSystem.mSpatialGrid.IsCreated)
+                    {
+                        lHashSystem.mSpatialGrid.Clear();
+                    }
+                }
+                return;
+            }
+
+            int lTargetEnemyCount = BenchmarkController.TargetEnemyCount;
+            int lCurrentEnemyCount = mEnemyQuery.CalculateEntityCount();
+
+            // Clear immediately if target is 0
+            if (lTargetEnemyCount == 0)
+            {
+                pState.EntityManager.DestroyEntity(mEnemyQuery);
+                pState.EntityManager.DestroyEntity(mExperienceQuery);
+                EnemyCounterSystem.TotalEnemies = 0;
+                EnemyCounterSystem.VisibleEnemies = 0;
+                return;
+            }
+
+            // --- Dynamic Despawn / Excess Trimming ---
+            if (lCurrentEnemyCount > lTargetEnemyCount)
+            {
+                int lExcess = lCurrentEnemyCount - lTargetEnemyCount;
+                using var lEntities = mEnemyQuery.ToEntityArray(Allocator.Temp);
+                int lToDestroy = math.min(lExcess, lEntities.Length);
+                for (int i = 0; i < lToDestroy; i++)
+                {
+                    pState.EntityManager.DestroyEntity(lEntities[i]);
+                }
+                EnemyCounterSystem.TotalEnemies = lTargetEnemyCount;
+                return;
+            }
+
+            // Exit early if target enemy count is already satisfied
+            if (lCurrentEnemyCount >= lTargetEnemyCount) return;
 
             // --- Camera Initialization Check ---
             // Ensure main camera exists before proceeding with spawn logic
@@ -93,8 +143,8 @@ namespace Roguelike.DOTS
             }
 
             // --- Spawn Logic ---
-            // Get current enemy count for capacity checks
-            int lCurrentEnemyCount = EnemyCounterSystem.TotalEnemies;
+            // Refresh current enemy count for capacity checks
+            lCurrentEnemyCount = mEnemyQuery.CalculateEntityCount();
             
             // Clamp delta time to prevent large jumps (max 0.1s per frame)
             float lDeltaTime = math.min(SystemAPI.Time.DeltaTime, 0.1f);
@@ -117,23 +167,17 @@ namespace Roguelike.DOTS
                     continue;
                 }
 
-                // Update game timer and spawn timer
+                // Update game timer
                 lSpawnerData.ValueRW.mGameTimer += lDeltaTime;
-                lSpawnerData.ValueRW.mTimer += lDeltaTime;
 
-                // Get current spawn interval (can be modified by difficulty curve)
-                float lCurrentInterval = lSpawnerData.ValueRO.mBaseSpawnInterval;
+                // Calculate how many enemies can be spawned (respects target horde cap up to 1M)
+                int lRemaining = lTargetEnemyCount - lCurrentEnemyCount;
+                if (lRemaining <= 0) continue;
 
-                // --- Spawn Trigger Check ---
-                // Trigger spawn wave when timer exceeds interval
-                if (lSpawnerData.ValueRO.mTimer >= lCurrentInterval)
-                {
-                    // Reset spawn timer for next wave
-                    lSpawnerData.ValueRW.mTimer = 0f;
-
-                    // Calculate how many enemies can be spawned (respects max cap)
-                    int lRemaining = lMaxEnemyCount - lCurrentEnemyCount;
-                    int lCount = math.min(lMaxEnemyCount, lRemaining);
+                // Scale batch size dynamically with remaining count:
+                // Small gap: 5,000 per frame. Huge gap (e.g. > 50,000): 25,000 per frame.
+                int lBatchSize = lRemaining > 50000 ? 25000 : 5000;
+                int lCount = math.min(lBatchSize, lRemaining);
 
                     // Randomly select which screen edge to spawn from
                     int lSide = lSpawnerData.ValueRW.mRandom.NextInt(0, 4);
@@ -196,7 +240,6 @@ namespace Roguelike.DOTS
 
                     // Dispose temporary array to prevent memory leaks
                     lSpawnedEnemies.Dispose();
-                }
             }
         }
     }

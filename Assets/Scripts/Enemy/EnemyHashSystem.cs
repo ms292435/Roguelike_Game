@@ -27,9 +27,9 @@ namespace Roguelike.DOTS
     {
         /// <summary>
         /// Global cell size in world units for the spatial hash grid.
-        /// Used across all systems and proxy queries for consistent spatial indexing.
+        /// Internal to the Roguelike.DOTS namespace to avoid leaking spatial grid implementation details to gameplay code.
         /// </summary>
-        public const float CellSize = 2f;
+        internal const float CellSize = 2f;
 
         public NativeParallelMultiHashMap<int2, EnemyGridData> mSpatialGrid;
         private EntityQuery mEnemyQuery;
@@ -37,16 +37,13 @@ namespace Roguelike.DOTS
         [BurstCompile]
         public void OnCreate(ref SystemState pState)
         {
-            // Require that at least one EnemySpeedComponent exists before running
-            pState.RequireForUpdate<EnemySpeedComponent>();
-            
-            // Initialize the spatial grid with initial capacity for 1000 enemies
-            mSpatialGrid = new NativeParallelMultiHashMap<int2, EnemyGridData>(1000, Allocator.Persistent);
-            
             // Build and cache a query for fast enemy counting
             mEnemyQuery = SystemAPI.QueryBuilder()
                 .WithAll<EnemySpeedComponent>()
                 .Build();
+
+            // Initialize the spatial grid with initial capacity for 1000 enemies
+            mSpatialGrid = new NativeParallelMultiHashMap<int2, EnemyGridData>(1000, Allocator.Persistent);
         }
 
         /// <summary>
@@ -73,6 +70,16 @@ namespace Roguelike.DOTS
         {
             // Count the current number of enemies in the world
             int lEnemyCount = mEnemyQuery.CalculateEntityCount();
+
+            // If no enemies exist, ensure spatial grid is cleared and exit early
+            if (lEnemyCount == 0)
+            {
+                if (mSpatialGrid.IsCreated)
+                {
+                    mSpatialGrid.Clear();
+                }
+                return;
+            }
 
             // Calculate target capacity with 50% overhead for dynamic growth
             int lTargetCapacity = (int)(lEnemyCount * 1.5f);

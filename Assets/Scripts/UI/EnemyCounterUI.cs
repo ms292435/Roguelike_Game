@@ -6,8 +6,8 @@ using Roguelike.DOTS;
 namespace Roguelike
 {
     /// <summary>
-    /// UI component displaying real-time enemy statistics (Visible and Total count) on the screen HUD.
-    /// Queries the static counts updated by EnemyCounterSystem.
+    /// UI component displaying real-time enemy statistics (Visible, Total count, and Target Horde) on the screen HUD.
+    /// Queries the static counts updated by EnemyCounterSystem and BenchmarkController.
     /// </summary>
     public class EnemyCounterUI : MonoBehaviour
     {
@@ -18,7 +18,7 @@ namespace Roguelike
         {
             if (mLabel != null)
             {
-                mLabel.text = $"Visible Enemies : {EnemyCounterSystem.VisibleEnemies}\nTotal Enemies : {EnemyCounterSystem.TotalEnemies}";
+                mLabel.text = $"Visible Enemies : {EnemyCounterSystem.VisibleEnemies:N0}\nTotal Enemies : {EnemyCounterSystem.TotalEnemies:N0} / Target : {BenchmarkController.TargetEnemyCount:N0}";
             }
         }
     }
