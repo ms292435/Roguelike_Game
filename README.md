@@ -3,31 +3,32 @@
 [![Unity Version](https://img.shields.io/badge/Unity-6000.4.0f1-black?logo=unity)](https://unity.com/)
 [![DOTS / Entities](https://img.shields.io/badge/Unity%20DOTS-Entities%201.3+-blue?logo=unity)](https://unity.com/dots)
 [![Burst Compiler](https://img.shields.io/badge/Burst-Compiled%20(SIMD)-green)](https://docs.unity3d.com/Packages/com.unity.burst@latest)
-[![Architecture](https://img.shields.io/badge/Architecture-Clean%20%2F%20Facade%20Pattern-orange)](#system-architecture--hybrid-bridge)
+[![Architecture](https://img.shields.io/badge/Architecture-Clean%20%2F%20Facade%20Pattern-orange)](#system-architecture-hybrid-bridge)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
 
 A high-performance technical benchmark and portfolio project developed in **Unity 6**. The primary objective is to scientifically explore, measure, and analyze the architectural and hardware-level performance boundaries between **Classic Object-Oriented Programming (MonoBehaviour / OOP)** and **Data-Oriented Technology Stack (DOTS / ECS)** in a Survivor-like game context.
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 1. [Project Overview](#project-overview)
-2. [System Architecture & Hybrid Bridge](#system-architecture--hybrid-bridge)
-3. [Phase 1: Classic OOP Implementation & Profiling](#phase-1-classic-oop-implementation--profiling)
-   - [Architectural Patterns](#architectural-patterns-in-oop)
-   - [Profiling & Identifying the Bottleneck](#profiling--identifying-the-bottleneck)
+2. [System Architecture & Hybrid Bridge](#system-architecture-hybrid-bridge)
+3. [Phase 1: Classic OOP Implementation & Profiling](#phase-1-classic-oop-implementation-profiling)
+   - [Architectural Patterns in OOP](#architectural-patterns-in-oop)
+   - [Profiling & Identifying the Bottleneck](#profiling-identifying-the-bottleneck)
    - [OOP Benchmark Results](#oop-benchmark-results)
-4. [Phase 2: DOTS/ECS Re-Engineering](#phase-2-dotsecs-re-engineering)
+4. [Phase 2: DOTS/ECS Re-Engineering](#phase-2-dots-ecs-re-engineering)
    - [Data-Oriented Design (DOD) Principles](#data-oriented-design-dod-principles)
    - [Core Systems Overview](#core-systems-overview)
-   - [In-Game Runtime Benchmark Suite](#in-game-runtime-benchmark-suite)
-5. [Performance Comparison & Hardware Analysis](#performance-comparison--hardware-analysis)
-6. [Engineering Standards & Best Practices](#engineering-standards--best-practices)
-7. [Controls & In-Game Benchmark HUD](#controls--in-game-benchmark-hud)
+5. [Performance Comparison & Hardware Analysis](#performance-comparison-hardware-analysis)
+6. [Engineering Standards & Best Practices](#engineering-standards-best-practices)
+7. [Controls & In-Game Benchmark HUD](#controls-in-game-benchmark-hud)
+8. [Tech Stack](#tech-stack)
 
 ---
 
-## 🎯 Project Overview
+<a id="project-overview"></a>
+## Project Overview
 
 In survivor-like horde games, rendering and updating tens of thousands of dynamic agents simultaneously is one of the most demanding challenges for game engines. 
 
@@ -39,7 +40,8 @@ The project features a **real-time in-game benchmark controller** allowing runti
 
 ---
 
-## 🏗️ System Architecture & Hybrid Bridge
+<a id="system-architecture-hybrid-bridge"></a>
+## System Architecture & Hybrid Bridge
 
 A cornerstone of this project is **Clean Architecture** and strict adherence to the **Single Responsibility Principle (SRP)**. 
 
@@ -84,8 +86,10 @@ flowchart TD
 
 ---
 
-## 🧱 Phase 1: Classic OOP Implementation & Profiling
+<a id="phase-1-classic-oop-implementation-profiling"></a>
+## Phase 1: Classic OOP Implementation & Profiling
 
+<a id="architectural-patterns-in-oop"></a>
 ### Architectural Patterns in OOP
 To establish a fair and optimized baseline, the OOP phase incorporated several production-grade patterns:
 - **Spatial Hash Grid**: Reduced collision detection complexity between horde units from $\mathcal{O}(n^2)$ to $\mathcal{O}(1)$ by mapping positions into discrete 2D spatial buckets.
@@ -94,6 +98,7 @@ To establish a fair and optimized baseline, the OOP phase incorporated several p
 - **Observer Pattern**: Decoupled events for player health, level up triggers, and HUD updates.
 - **Boids-Inspired Horde Steering**: Blended vector steering combining *Seek* (player attraction) with a smoothed, time-sliced *Separation* vector (`Vector3.Lerp`) to prevent unnatural teleportation or overlap.
 
+<a id="profiling-identifying-the-bottleneck"></a>
 ### Profiling & Identifying the Bottleneck
 
 Profiling with Unity Profiler revealed that the primary bottleneck was located in `EnemyPool.Update() -> Enemy.Tick()`:
@@ -107,6 +112,7 @@ EnemyPool.Update()
 
 Even with spatial partitioning and time-slicing, updating large hordes on a single thread hit a hard performance ceiling.
 
+<a id="oop-benchmark-results"></a>
 ### OOP Benchmark Results
 
 | Enemy Count | Frame Update Time (ms) | Target Frame Rate | Status / Playability |
@@ -121,8 +127,10 @@ Even with spatial partitioning and time-slicing, updating large hordes on a sing
 
 ---
 
-## ⚡ Phase 2: DOTS/ECS Re-Engineering
+<a id="phase-2-dots-ecs-re-engineering"></a>
+## Phase 2: DOTS/ECS Re-Engineering
 
+<a id="data-oriented-design-dod-principles"></a>
 ### Data-Oriented Design (DOD) Principles
 
 To break past the 10,000 entity ceiling, the simulation was converted to **Data-Oriented Design (DOD)**:
@@ -140,6 +148,7 @@ Chunk 2: [ Speed     | Speed     | Speed     ... ]  <-- SIMD Vectorized Executio
 - **Cache Locality**: Iterating over linear arrays maximizes L1/L2 cache prefetching, minimizing RAM latency.
 - **Burst Compiler**: Compiles C# code into highly optimized native machine assembly with auto-vectorization (SIMD / AVX2).
 
+<a id="core-systems-overview"></a>
 ### Core Systems Overview
 
 1. [`EnemyMovementSystem`](file:///C:/Users/mart1/Documents/Roguelike/Assets/Scripts/Enemy/EnemyMovementSystem.cs):
@@ -159,7 +168,8 @@ Chunk 2: [ Speed     | Speed     | Speed     ... ]  <-- SIMD Vectorized Executio
 
 ---
 
-## 📊 Performance Comparison & Hardware Analysis
+<a id="performance-comparison-hardware-analysis"></a>
+## Performance Comparison & Hardware Analysis
 
 | Metric | Classic OOP (MonoBehaviour) | Unity DOTS / ECS | Improvement Factor |
 |:---|:---:|:---:|:---:|
@@ -173,7 +183,8 @@ Chunk 2: [ Speed     | Speed     | Speed     ... ]  <-- SIMD Vectorized Executio
 
 ---
 
-## 🛠️ Engineering Standards & Best Practices
+<a id="engineering-standards-best-practices"></a>
+## Engineering Standards & Best Practices
 
 The codebase follows strict software engineering and C# conventions:
 
@@ -189,7 +200,8 @@ The codebase follows strict software engineering and C# conventions:
 
 ---
 
-## 🎮 Controls & In-Game Benchmark HUD
+<a id="controls-in-game-benchmark-hud"></a>
+## Controls & In-Game Benchmark HUD
 
 An interactive IMGUI HUD and keyboard hotkeys are included to inspect and control the benchmark at runtime:
 
@@ -203,7 +215,8 @@ An interactive IMGUI HUD and keyboard hotkeys are included to inspect and contro
 
 ---
 
-## 💻 Tech Stack
+<a id="tech-stack"></a>
+## Tech Stack
 - **Engine**: Unity 6 (6000.4.0f1)
 - **DOTS Packages**: `com.unity.entities` (1.3.12), `com.unity.entities.graphics` (1.3.12), `com.unity.burst` (1.8.24), `com.unity.mathematics` (1.3.2)
 - **Input System**: `com.unity.inputsystem` (New Input System)
