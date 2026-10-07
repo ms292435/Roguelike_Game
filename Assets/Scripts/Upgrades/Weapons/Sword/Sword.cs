@@ -1,9 +1,11 @@
-using System.Runtime.InteropServices.WindowsRuntime;
 using UnityEngine;
-using UnityEngine.VFX;
 
 namespace Roguelike
 {
+    /// <summary>
+    /// Melee weapon that executes circular slashing attacks around the player.
+    /// Spawns visual slash VFX instances and applies damage to ECS enemies via EnemyDamageProxy.
+    /// </summary>
     public class Sword : MonoBehaviour, IWeapon
     {
         public float mDamage = 20f;
@@ -11,9 +13,7 @@ namespace Roguelike
         public float mAttackRadius = 1.5f;
 
         public int WeaponLevel { get; set; }
-
         public WeaponUpgradeData Data => mData;
-
         public AudioClip AttackSound => mAttackSound;
 
         [Header("Visuals")]
@@ -21,52 +21,65 @@ namespace Roguelike
 
         private float mVisualScaleMultiplier = 1f;
         private float mTimer;
-
         private WeaponUpgradeData mData;
-
         private Vector3 mCurrentPosition;
         private Vector3 mAttackOffset = new(2f, 0f, 0f);
         private int mAttackCount;
 
         [SerializeField] private AudioClip mAttackSound;
 
+        /// <summary>
+        /// Initializes weapon configuration data and base attack count.
+        /// </summary>
+        /// <param name="pData">The weapon upgrade configuration data.</param>
         public void Initialize(WeaponUpgradeData pData)
         {
             mData = pData;
             mAttackCount = 3;
         }
+
+        /// <summary>
+        /// Executes the weapon attack by triggering circular slashes.
+        /// </summary>
         public void Attack()
         {
             PerformCircularAttack(mAttackCount);
         }
 
+        /// <summary>
+        /// Distributes slash attacks evenly in a circle around the player.
+        /// Instantiates visual slash effects and deals area damage through the ECS damage proxy.
+        /// </summary>
+        /// <param name="pCount">Number of slash strikes in the circular pattern.</param>
         private void PerformCircularAttack(int pCount)
         {
             float lRadius = mAttackOffset.magnitude;
 
             for (int i = 0; i < pCount; i++)
             {
-                // Compute angle for this attack (evenly spaced around the circle)
+                // Compute evenly spaced angle around the circle
                 float lAngle = Mathf.PI + (i * (Mathf.PI * 2f / pCount));
-
-                // Convert polar coordinates to Cartesian
                 float lX = Mathf.Cos(lAngle) * lRadius;
                 float lY = Mathf.Sin(lAngle) * lRadius;
 
-                Vector3 lAttackPos = mCurrentPosition + new Vector3(lX, lY, 0);
-
-                // Rotate the VFX to face outward
+                Vector3 lAttackPos = mCurrentPosition + new Vector3(lX, lY, 0f);
                 float lAngleDeg = lAngle * Mathf.Rad2Deg;
-                Quaternion lRotation = Quaternion.Euler(0, 0, lAngleDeg);
+                Quaternion lRotation = Quaternion.Euler(0f, 0f, lAngleDeg);
 
-                // Instantiation and Damage
+                // Spawn and configure pooled slash VFX
                 SwordSlash lVfxInstance = MeleeAttacksManager.Instance.GetVfx(mSlashVfxPrefab, lAttackPos, lRotation);
-                lVfxInstance.transform.localScale = new Vector3(3, 3, 1) * mVisualScaleMultiplier;
+                lVfxInstance.transform.localScale = new Vector3(3f, 3f, 1f) * mVisualScaleMultiplier;
 
-                ApplyDamageAtPosition(lAttackPos);
+                // Deal area damage to ECS enemies via proxy bridge
+                DOTS.EnemyDamageProxy.DealDamage(lAttackPos, mAttackRadius, mDamage * Player.Instance.Damage);
             }
         }
 
+        /// <summary>
+        /// Updates the weapon cooldown timer and triggers attacks when ready.
+        /// </summary>
+        /// <param name="pDeltaTime">Elapsed frame time in seconds.</param>
+        /// <returns>True if an attack was executed this frame, false otherwise.</returns>
         public bool UpdateWeapon(float pDeltaTime)
         {
             mCurrentPosition = transform.position;
@@ -76,21 +89,12 @@ namespace Roguelike
             {
                 Attack();
                 mTimer = 0f;
-                return true; // Attack performed
+                return true;
             }
-            return false; // No attack this frame
+            return false;
         }
 
-        private void ApplyDamageAtPosition(Vector3 pPosition)
-        {
-            var lEnemiesInRange = SpatialGrid.Instance.GetEnemiesInRadius(pPosition, mAttackRadius);
-            foreach (var lEnemy in lEnemiesInRange)
-            {
-                lEnemy.TakeDamage(mDamage * Player.Instance.Damage);
-            }
-        }
-
-        void OnDrawGizmosSelected()
+        private void OnDrawGizmosSelected()
         {
             Gizmos.color = Color.red;
             Gizmos.DrawWireSphere(mCurrentPosition + mAttackOffset, mAttackRadius);
@@ -99,6 +103,10 @@ namespace Roguelike
             Gizmos.DrawWireSphere(mCurrentPosition - new Vector3(0, mAttackOffset.x, 0), mAttackRadius);
         }
 
+        /// <summary>
+        /// Generates a randomized upgrade proposal for the level up screen.
+        /// </summary>
+        /// <returns>Weapon upgrade proposal with description and application callback.</returns>
         public WeaponUpgradeProposal GetNextUpgradeProposal()
         {
             int lRandomChoice = Random.Range(0, 3);
@@ -114,7 +122,7 @@ namespace Roguelike
                     lProposal.Description = "Range +15%";
                     lProposal.ApplyAction = () =>
                     {
-                        mAttackRadius *= 1.15f; WeaponLevel++;
+                        mAttackRadius *= 1.15f;
                         mVisualScaleMultiplier *= 1.15f;
                         mAttackOffset *= 1.15f;
                         WeaponLevel++;

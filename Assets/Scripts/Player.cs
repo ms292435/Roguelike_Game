@@ -3,54 +3,71 @@ using UnityEngine;
 
 namespace Roguelike
 {
-    public class Player : Entity, ISubject
+    /// <summary>
+    /// Singleton player character component managing health, experience progression, weapon equipping, and observer notifications.
+    /// Acts as an ISubject notifying observers upon LevelUp and Experience gains.
+    /// </summary>
+    public class Player : RoguelikeEntity, ISubject
     {
         public ExperienceBar mExperienceBar;
-
         public Transform mWeaponSlot;
 
         public float mAttractRadius = 2f;
         public float mCollectRadius = 1f;
+
         public float CurrentXP { get; private set; }
         public float MaxXP { get; private set; }
 
         public static Player Instance { get; private set; }
 
-
         public Vector3 mCurrentPosition;
 
-        private Rigidbody2D mRigibody;
-
+        private Rigidbody2D mRigidbody;
         private readonly List<IObserver> mObservers = new();
-
         private bool mIsDead = false;
 
+        /// <summary>
+        /// Registers an observer to receive player notifications.
+        /// </summary>
+        /// <param name="pObserver">The observer instance.</param>
         public void AddObserver(IObserver pObserver) => mObservers.Add(pObserver);
 
+        /// <summary>
+        /// Removes an observer from player notifications.
+        /// </summary>
+        /// <param name="pObserver">The observer instance to unregister.</param>
         public void RemoveObserver(IObserver pObserver) => mObservers.Remove(pObserver);
 
+        /// <summary>
+        /// Broadcasts an event name to all subscribed observers.
+        /// </summary>
+        /// <param name="pEventName">Event identifier (e.g. "LevelUp", "Experience").</param>
         public void Notify(string pEventName)
         {
             foreach (var lObserver in mObservers) lObserver.OnNotify(this, pEventName);
         }
 
+        /// <summary>
+        /// Instantiates and equips a weapon logic prefab onto the player's weapon slot.
+        /// </summary>
+        /// <param name="pWeaponData">The weapon upgrade configuration data.</param>
         public void EquipWeapon(WeaponUpgradeData pWeaponData)
         {
             if (pWeaponData == null)
             {
-                Debug.LogError("ERROR: The weapon is null! The LevelUpManager did not find a weapon with the exact Name 'Sword'. Check the mAllAvailableUpgrades list and the Name field of your Scriptable Object.");
+                Debug.LogError("ERROR: The weapon is null! Check the mAllAvailableUpgrades list.");
                 return;
             }
 
             if (mWeaponSlot == null)
             {
-                Debug.LogError("ERROR: The mWeaponSlot of the Player is null! Drag the WeaponSlot object into the Player script inspector.");
+                Debug.LogError("ERROR: The mWeaponSlot of the Player is null! Assign it in the inspector.");
                 return;
             }
 
             if (pWeaponData.mWeaponLogicPrefab == null)
             {
-                Debug.LogError("ERROR: The mWeaponLogicPrefab is null in the weapon data!");
+                Debug.LogError("ERROR: The mWeaponLogicPrefab is null in weapon data!");
                 return;
             }
 
@@ -63,10 +80,14 @@ namespace Roguelike
             }
             else
             {
-                Debug.LogError($"Le prefab {pWeaponData.mWeaponLogicPrefab.name} n'a pas de script IWeapon !");
+                Debug.LogError($"Prefab {pWeaponData.mWeaponLogicPrefab.name} does not implement IWeapon!");
             }
         }
 
+        /// <summary>
+        /// Adds experience points to the player and triggers level-up events when threshold is reached.
+        /// </summary>
+        /// <param name="pAmount">Amount of experience gained.</param>
         public void AddExperience(float pAmount)
         {
             if (MaxXP <= 0)
@@ -86,7 +107,7 @@ namespace Roguelike
             Notify("Experience"); 
         }
 
-        void Awake()
+        private void Awake()
         {
             if (Instance != null && Instance != this)
             {
@@ -96,20 +117,20 @@ namespace Roguelike
             Instance = this;
 
             mIsDead = false;
-            Health = 50000f;
+            Health = 5000000f;
             Damage = 100f;
             Speed = 4f;
-            MaxXP = 10f;
+            MaxXP = 100000f;
             CurrentXP = 0f;
         }
 
-        void Start()
+        private void Start()
         {
-            mRigibody = GetComponent<Rigidbody2D>();
-            mRigibody.freezeRotation = true;
+            mRigidbody = GetComponent<Rigidbody2D>();
+            mRigidbody.freezeRotation = true;
         }
 
-        void Update()
+        private void Update()
         {
             if (mIsDead) return;
 
@@ -123,7 +144,7 @@ namespace Roguelike
             }
         }
 
-        void OnDestroy()
+        private void OnDestroy()
         {
             if (Instance == this)
             {
