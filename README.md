@@ -2,9 +2,8 @@
 
 [![Unity Version](https://img.shields.io/badge/Unity-6000.4.0f1-black?logo=unity)](https://unity.com/)
 [![DOTS / Entities](https://img.shields.io/badge/Unity%20DOTS-Entities%201.3+-blue?logo=unity)](https://unity.com/dots)
-[![Burst Compiler](https://img.shields.io/badge/Burst-Compiled%20(SIMD)-green)](https://docs.unity3d.com/Packages/com.unity.burst@latest)
+[![Burst Compiler](https://img.shields.io/badge/Burst-Compiled-green)](https://docs.unity3d.com/Packages/com.unity.burst@latest)
 [![Architecture](https://img.shields.io/badge/Architecture-Clean%20%2F%20Facade%20Pattern-orange)](#phase-2-dotsecs-hybrid-architecture)
-[![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
 
 A high-performance technical benchmark and portfolio project developed in **Unity 6**. The primary objective is to scientifically explore, measure, and analyze the architectural and hardware-level performance boundaries between **Classic Object-Oriented Programming (MonoBehaviour / OOP)** and **Data-Oriented Technology Stack (DOTS / ECS)** in a Survivor-like game context.
 
@@ -130,7 +129,7 @@ classDiagram
 
 1. **Observer Pattern**: `Player` acts as `ISubject` notifying decoupled UI systems (`ExperienceBar`, `LevelUpManager`) without direct dependencies.
 2. **Strategy Pattern for Weapons**: `WeaponManager` updates polymorphic weapons through the `IWeapon` interface. Weapon stats are data-driven via `ScriptableObject` assets (`WeaponUpgradeData`), enabling frictionless content expansion.
-3. **Spatial Hash Grid**: Reduces collision and neighbor search complexity from $\mathcal{O}(n^2)$ to $\mathcal{O}(1)$ by mapping agent coordinates into discrete 2D hash cells.
+3. **Spatial Hash Grid**: Reduces collision and neighbor search complexity from $\mathcal{O}(n^2)$ to $\mathcal{O}(n)$ by mapping agent coordinates into discrete 2D hash cells: each query only scans the neighboring cells instead of every enemy.
 4. **Strict Object Pooling**: Pre-allocates enemies, damage text, projectiles, and experience gems, reducing runtime allocations on the critical path to **0 – 1 KB per frame**.
 5. **Boids-Inspired Horde Steering**: Blended vector steering combining *Seek* (player attraction) with a smoothed, time-sliced *Separation* vector (`Vector3.Lerp`) to prevent unnatural teleportation or overlapping.
 
@@ -162,7 +161,7 @@ Even with spatial grid lookups, neighbor caching, and 4-frame time-sliced separa
 | **8,000** | 35.40 ms | ~30 FPS | Degraded responsiveness; functional limit |
 | **10,000** | **45.59 ms** | **< 20 FPS** | **Unplayable (Hardware Ceiling Reached)** |
 
-> **OOP Conclusion**: The limit of the OOP implementation is **~8,000–10,000 entities**. The root cause is not algorithmic inefficiency, but **hardware memory hierarchy**. OOP stores `GameObject` and `MonoBehaviour` instances as individual reference types scattered throughout the RAM. The CPU is constantly stalled by **Cache Misses** (pointer chasing), starving execution pipelines.
+> **OOP Conclusion**: The playable limit of the OOP implementation is **~8,000 entities** (~30 FPS); at 10,000 the game drops below 20 FPS. The root cause is not algorithmic inefficiency, but **hardware memory hierarchy**. OOP stores `GameObject` and `MonoBehaviour` instances as individual reference types scattered throughout the RAM. The CPU is constantly stalled by **Cache Misses** (pointer chasing), starving execution pipelines.
 
 ---
 
@@ -184,7 +183,7 @@ flowchart TD
     subgraph SimulationPipeline ["2. DOTS Simulation Pipeline (SimulationSystemGroup)"]
         direction TB
         EHS["<b>EnemyHashSystem</b><br/><i>[UpdateBefore EnemyMovementSystem]</i><br/>NativeParallelMultiHashMap Spatial Partitioning"]
-        EMS["<b>EnemyMovementSystem</b><br/><i>Parallel Burst Job (IJobEntity)</i><br/>SIMD Vectorized Horde Movement"]
+        EMS["<b>EnemyMovementSystem</b><br/><i>Parallel Burst Job (IJobEntity)</i><br/>Multithreaded Horde Movement"]
         ECS["<b>EnemyCounterSystem</b><br/><i>[UpdateAfter EnemyMovementSystem]</i><br/>O(chunks) Total Count + Burst Culling Job"]
         ESS["<b>EnemySpawnerSystem</b><br/>GPU BatchRendererGroup Instantiation"]
         EXS["<b>ExperienceSpawnSystem / CollectSystem</b><br/>Entity Command Buffer (ECB) Lifecycle"]
@@ -231,31 +230,31 @@ Traditional OOP (Array of Structures - Scattered Pointers):
 
 DOTS / ECS (Structure of Arrays - 16KB Archetype Chunks):
 Chunk 1: [ Transform | Transform | Transform ... ]  <-- Linear Cache Line Prefetching
-Chunk 2: [ Speed     | Speed     | Speed     ... ]  <-- SIMD Vectorized Execution
+Chunk 2: [ Speed     | Speed     | Speed     ... ]  <-- Burst-compiled, multithreaded iteration
 ```
 
 - **Archetype Chunks**: Entities with identical component configurations are packed contiguously into memory chunks of 16 KB.
 - **Cache Locality**: Iterating over linear arrays maximizes L1/L2 cache prefetching, minimizing RAM latency.
-- **Burst Compiler**: Compiles C# code into highly optimized native machine assembly with auto-vectorization (SIMD / AVX2).
+- **Burst Compiler**: Compiles C# jobs into highly optimized native code (LLVM), spread across all worker threads by the C# Job System.
 
 ---
 
 <a id="core-systems-overview"></a>
 ### Core Systems Overview
 
-1. [`EnemyMovementSystem`](file:///C:/Users/mart1/Documents/Roguelike/Assets/Scripts/Enemy/EnemyMovementSystem.cs):
+1. [`EnemyMovementSystem`](Assets/Scripts/Enemy/EnemyMovementSystem.cs):
    - Burst-compiled parallel job (`IJobEntity`) computing directional vectors towards the player.
    - Zero heap allocation, fully multithreaded across all available CPU worker threads.
-2. [`EnemyHashSystem`](file:///C:/Users/mart1/Documents/Roguelike/Assets/Scripts/Enemy/EnemyHashSystem.cs):
+2. [`EnemyHashSystem`](Assets/Scripts/Enemy/EnemyHashSystem.cs):
    - Partitions active enemies into a `NativeParallelMultiHashMap<int2, EnemyGridData>`.
    - Dynamic capacity scaling with hysteresis to prevent frequent native reallocations.
-3. [`EnemySpawnerSystem`](file:///C:/Users/mart1/Documents/Roguelike/Assets/Scripts/Enemy/EnemySpawnerSystem.cs):
+3. [`EnemySpawnerSystem`](Assets/Scripts/Enemy/EnemySpawnerSystem.cs):
    - Uses `BatchRendererGroup` / `EntitiesGraphicsSystem` for GPU-instanced rendering.
    - Spawns enemies dynamically along camera edges in configurable batch sizes up to target horde limits.
-4. [`EnemyCounterSystem`](file:///C:/Users/mart1/Documents/Roguelike/Assets/Scripts/UI/EnemyCounterSystem.cs):
+4. [`EnemyCounterSystem`](Assets/Scripts/UI/EnemyCounterSystem.cs):
    - Queries exact entity count instantly in $\mathcal{O}(\text{chunks})$ directly from archetype metadata (`mEnemyQuery.CalculateEntityCount()`), introducing zero frame delay and no thread contention.
    - Runs a Burst-compiled culling job (`CountVisibleEnemiesJob`) to report on-screen entity density.
-5. [`ExperienceSpawnSystem`](file:///C:/Users/mart1/Documents/Roguelike/Assets/Scripts/Experience/ExperienceSpawnSystem.cs) & [`ExperienceCollectSystem`](file:///C:/Users/mart1/Documents/Roguelike/Assets/Scripts/Experience/ExperienceCollectSystem.cs):
+5. [`ExperienceSpawnSystem`](Assets/Scripts/Experience/ExperienceSpawnerSystem.cs) & [`ExperienceCollectionSystem`](Assets/Scripts/Experience/ExperienceMovementSystem.cs):
    - Handles XP orb instantiation and magnet attraction towards the player through decoupled Entity Command Buffers (ECB).
 
 ---
@@ -263,25 +262,69 @@ Chunk 2: [ Speed     | Speed     | Speed     ... ]  <-- SIMD Vectorized Executio
 <a id="decoupling-with-the-enemybridge-facade"></a>
 ### Decoupling with the EnemyBridge Facade
 
-The [`EnemyBridge.cs`](file:///C:/Users/mart1/Documents/Roguelike/Assets/Scripts/Enemy/EnemyBridge.cs) facade completely decouples gameplay logic from unmanaged ECS:
+The [`EnemyBridge.cs`](Assets/Scripts/Enemy/EnemyBridge.cs) facade completely decouples gameplay logic from unmanaged ECS:
 - **No Leaky Abstractions**: Gameplay scripts (`FireWand`, `Projectile`, `Sword`) never import `Unity.Entities` or touch `World.DefaultGameObjectInjectionWorld`.
 - **Encapsulated Grid Metrics**: Spatial cell size (`CellSize`) is declared `internal` to the simulation domain. High-level weapons simply query `EnemyBridge.TryGetClosestEnemy(origin, range, out target)`.
-- **Single-Pass Projectile Collision**: Instead of performing multiple spatial queries per projectile per frame, `EnemyBridge.DealDamage` applies damage and returns the hit count in a single traversal, cutting collision detection overhead in half.
+- **Single-Pass Projectile Collision**: Instead of performing multiple spatial queries per projectile per frame, `EnemyBridge.DealDamage` applies damage and returns the hit count in a single traversal, instead of a separate collision check followed by a damage query.
+- **Safe Enemy Destruction**: Command buffers are only played back at the end of the frame, so an enemy hit twice in the same frame could be destroyed twice (duplicate XP orbs, playback exception). Each enemy carries an enableable `EnemyDeadTag`, switched on as soon as its destruction is queued, so weapons, player contact and the spawner all skip enemies that are already dying.
 
 ---
 
 <a id="performance-comparison-hardware-analysis"></a>
 ## Performance Comparison & Hardware Analysis
 
-| Metric | Classic OOP (MonoBehaviour) | Unity DOTS / ECS | Improvement Factor |
+### Methodology
+
+- **Build**: development build connected to the Unity Profiler (no Editor overhead).
+- **Simulation metric**: OOP measures `EnemyPool.Update()`; DOTS measures `SimulationSystemGroup` on the main thread. Since DOTS jobs run on worker threads, this includes scheduling the jobs *and waiting for them*, plus the XP orbs and the spawner: a slightly pessimistic but fair equivalent.
+- **Frame metric**: `PlayerLoop`, the whole CPU frame (simulation, rendering preparation, UI).
+- **Protocol**: values from a representative frame once the horde size is stable. The GPU time was not captured, so FPS values are CPU-bound estimates (`1000 / PlayerLoop`).
+
+### DOTS / ECS Results
+
+| Enemies | Simulation (ms) | Time per Enemy (µs) | Full CPU Frame (ms) | CPU-bound FPS |
+|:---:|:---:|:---:|:---:|:---:|
+| 2,000 | 0.24 | 0.120 | 2.73 | ~366 |
+| 4,000 | 0.29 | 0.073 | 2.62 | ~382 |
+| 6,000 | 0.31 | 0.052 | 2.63 | ~380 |
+| 8,000 | 0.41 | 0.051 | 3.04 | ~329 |
+| 10,000 | 0.50 | 0.050 | 2.78 | ~360 |
+| 50,000 | 1.92 | 0.038 | 6.83 | ~146 |
+| 100,000 | 4.14 | 0.041 | 9.88 | ~101 |
+| **250,000** | **9.08** | **0.036** | **22.93** | **~44** |
+| 500,000 | 19.02 | 0.038 | 43.00 | ~23 |
+| 1,000,000 | 40.57 | 0.041 | 88.62 | ~11 |
+
+Up to 10,000 enemies the cost is dominated by the fixed overhead of the ECS pipeline (system updates, job scheduling, synchronization). From 50,000 onwards, the simulation scales linearly at **~0.04 µs per enemy**.
+
+### OOP vs. DOTS / ECS
+
+| Enemies | OOP `EnemyPool.Update()` | DOTS `SimulationSystemGroup` | Speed-up |
+|:---:|:---:|:---:|:---:|
+| 2,000 | 4.21 ms | 0.24 ms | ×17.5 |
+| 4,000 | 8.94 ms | 0.29 ms | ×30.8 |
+| 6,000 | 19.64 ms | 0.31 ms | ×63.4 |
+| 8,000 | 35.40 ms | 0.41 ms | ×86.3 |
+| 10,000 | 45.59 ms | 0.50 ms | **×91.2** |
+
+| Metric | Classic OOP (MonoBehaviour) | Unity DOTS / ECS | Improvement |
 |:---|:---:|:---:|:---:|
-| **Maximum Playable Entities (≥ 30 FPS)** | ~8,000 | **100,000+** | **> 12.5x** |
-| **Horde Ceiling Tested** | 10,000 (< 20 FPS) | **1,000,000 entities** | **100x Scale** |
-| **CPU Frame Time @ 2,000 Entities** | 4.21 ms | **< 0.45 ms** | **~9.3x Faster** |
-| **CPU Frame Time @ 10,000 Entities** | 45.59 ms (Spike) | **< 1.80 ms** | **~25x Faster** |
-| **Memory Allocation per Frame** | 0 – 1 KB | **0 Bytes** (100% Unmanaged) | Zero GC Pressure |
-| **Thread Utilization** | Single Thread (Main Thread) | Full Multithreading (Job Worker Threads) | Near-linear scaling across cores |
-| **Memory Layout** | Heap (Scattered pointers) | Contiguous Chunks (Cache-coherent SoA) | Eliminates CPU Cache Misses |
+| **Max Playable Entities (≥ 30 FPS)** | ~8,000 | **~250,000** (~44 FPS) | **~30×** |
+| **Highest Count Tested** | 10,000 (< 20 FPS) | 1,000,000 (~11 FPS) | 100× |
+| **Simulation Cost per Enemy** | ~4.6 µs (10k) | **~0.04 µs** | **~110×** |
+| **Full CPU Frame @ 10,000 Entities** | 54.63 ms | **2.78 ms** | **~20×** |
+| **Simulation Allocations per Frame** | 0 – 1 KB | **0 B** (102 B above 50k) | Negligible GC pressure |
+| **Thread Utilization** | Main thread only | All job worker threads | Parallel |
+| **Memory Layout** | Heap objects (scattered pointers) | Contiguous archetype chunks (SoA) | Far fewer cache misses |
+
+> Simulating **1,000,000** enemies with DOTS (40.57 ms) takes less time than simulating **10,000** with OOP (45.59 ms).
+
+### Where the New Bottleneck Is
+
+- **The simulation is no longer the whole story**: with a large horde it only represents ~40–45% of the CPU frame. The rest goes to rendering (Entities Graphics GPU uploads) and engine overhead, which explains why the full-frame gain (~20×) is smaller than the simulation gain (~91×).
+- **Spawning**: new enemies are instantiated on the main thread in batches of up to 25,000 per frame, which causes visible spikes when the target count is raised. Moving it into a Burst job is the next optimization.
+- **Garbage collection**: the ~9 KB allocated per frame on the `PlayerLoop` come from `PostLateUpdate.FinishFrameRendering` (render pipeline), not from the ECS simulation.
+- **Not isolated here**: the gain combines contiguous memory, Burst compilation and multithreading, and the rendering path also differs (`SpriteRenderer` vs. Entities Graphics).
 
 ---
 
@@ -296,7 +339,7 @@ The codebase follows strict software engineering and C# conventions:
   - `l` prefix for local variables (`lPlayerPos`, `lCellRange`).
 - **Memory Safety**:
   - All native containers (`NativeArray`, `NativeParallelMultiHashMap`, `NativeReference`) are tracked and properly disposed in `OnDestroy()`.
-  - Existence checks (`EntityManager.Exists`) precede ECB structural change commands to eliminate unmanaged dangling pointer exceptions.
+  - Existence checks (`EntityManager.Exists`) and the `EnemyDeadTag` marker guard every ECB destruction, so an entity is never destroyed twice.
 - **Documentation**:
   - 100% of public methods, systems, and structs are documented with standard XML docstrings in English.
 
@@ -311,6 +354,7 @@ An interactive IMGUI HUD and keyboard hotkeys are included to inspect and contro
 |:---:|:---|:---|
 | **1 – 7** (Main / Numpad) | **Target Presets** | `1`: 1,000 &bull; `2`: 5,000 &bull; `3`: 10,000 &bull; `4`: 50,000 &bull; `5`: 100,000 &bull; `6`: 500,000 &bull; `7`: 1,000,000 |
 | **+** / **-** | **Horde Step** | Adjust horde target by $\pm$ 10,000 (Hold **Shift** for $\pm$ 50,000) |
+| **HUD buttons** | **Fine Adjustments** | `-50k` &bull; `-10k` &bull; `-1k` &bull; `+1k` &bull; `+10k` &bull; `+50k` &bull; `Clear All` |
 | **C** or **Delete** | **Clear All** | Instantly destroys all active enemies and XP orbs |
 | **F1** | **Toggle HUD** | Shows / hides the on-screen benchmark interface |
 | **Z, Q, S, D** / Arrows | **Movement** | Player controls |

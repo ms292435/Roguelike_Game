@@ -198,7 +198,7 @@ namespace Roguelike
 
             InitializeStyles();
 
-            int lPanelWidth = 380;
+            int lPanelWidth = 420;
             int lPanelHeight = 150;
             int lMargin = 10;
             Rect lPanelRect = new Rect(Screen.width - lPanelWidth - lMargin, lMargin, lPanelWidth, lPanelHeight);
@@ -232,6 +232,8 @@ namespace Roguelike
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("-50k", mButtonStyle)) AdjustTarget(-50000);
             if (GUILayout.Button("-10k", mButtonStyle)) AdjustTarget(-10000);
+            if (GUILayout.Button("-1k", mButtonStyle)) AdjustTarget(-1000);
+            if (GUILayout.Button("+1k", mButtonStyle)) AdjustTarget(1000);
             if (GUILayout.Button("+10k", mButtonStyle)) AdjustTarget(10000);
             if (GUILayout.Button("+50k", mButtonStyle)) AdjustTarget(50000);
 
