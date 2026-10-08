@@ -31,6 +31,7 @@ namespace Roguelike.DOTS
 
             var lEcbSystem = lWorld.GetOrCreateSystemManaged<EndSimulationEntityCommandBufferSystem>();
             var lEcb = lEcbSystem.CreateCommandBuffer();
+            var lEntityManager = lWorld.EntityManager;
 
             float lCellSize = EnemyHashSystem.CellSize;
             float lSqrRadius = pRadius * pRadius;
@@ -59,8 +60,11 @@ namespace Roguelike.DOTS
 
                             if (math.lengthsq(lEnemyPos - lPos) <= lSqrRadius)
                             {
-                                if (lWorld.EntityManager.Exists(lData.mEntity))
+                                // Skip enemies already destroyed or already queued for destruction this frame
+                                if (lEntityManager.Exists(lData.mEntity)
+                                    && !lEntityManager.IsComponentEnabled<EnemyDeadTag>(lData.mEntity))
                                 {
+                                    lEntityManager.SetComponentEnabled<EnemyDeadTag>(lData.mEntity, true);
                                     Entity lXpEntity = lEcb.CreateEntity();
                                     lEcb.AddComponent(lXpEntity, new SpawnExperienceTag { mPosition = lEnemyPos });
                                     lEcb.DestroyEntity(lData.mEntity);

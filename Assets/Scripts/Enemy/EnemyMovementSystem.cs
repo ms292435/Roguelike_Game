@@ -83,6 +83,7 @@ namespace Roguelike.DOTS
         /// Handles player collision detection, separation forces, and animation.
         /// </summary>
         [BurstCompile]
+        [WithPresent(typeof(EnemyDeadTag))]
         public partial struct EnemyMovementJob : IJobEntity
         {
             public float mDeltaTime;
@@ -108,9 +109,14 @@ namespace Roguelike.DOTS
             /// <param name="pTransform">Enemy transform component (modified).</param>
             /// <param name="pSpeed">Enemy speed component with smoothed separation (modified).</param>
             /// <param name="pDamage">Enemy damage component (read-only).</param>
+            /// <param name="pDead">Death marker, enabled once the enemy is queued for destruction.</param>
             private void Execute([EntityIndexInQuery] int pSortKey, Entity pEntity,
-                ref LocalTransform pTransform, ref EnemySpeedComponent pSpeed, in EnemyDamageComponent pDamage)
+                ref LocalTransform pTransform, ref EnemySpeedComponent pSpeed, in EnemyDamageComponent pDamage,
+                EnabledRefRW<EnemyDeadTag> pDead)
             {
+                // Already queued for destruction (e.g. hit by a weapon this frame): nothing left to simulate
+                if (pDead.ValueRO) return;
+
                 // Get current enemy position and normalize to 2D space (z = 0)
                 float3 lCurrentPosition = pTransform.Position;
                 lCurrentPosition.z = 0f;
@@ -133,7 +139,8 @@ namespace Roguelike.DOTS
                     var lXpEntity = mECB.CreateEntity(pSortKey);
                     mECB.AddComponent(pSortKey, lXpEntity, new SpawnExperienceTag { mPosition = lCurrentPosition });
 
-                    // Destroy the enemy entity
+                    // Destroy the enemy entity and mark it so no other code path destroys it again
+                    pDead.ValueRW = true;
                     mECB.DestroyEntity(pSortKey, pEntity);
                     return;
                 }

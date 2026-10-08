@@ -54,6 +54,10 @@ namespace Roguelike.DOTS
                 {
                     mValue = pAuthoring.mDamage                  // Transfer editor-configured damage value
                 });
+
+                // Add the death marker, disabled until the enemy is queued for destruction
+                AddComponent<EnemyDeadTag>(lEntity);
+                SetComponentEnabled<EnemyDeadTag>(lEntity, false);
             }
         }
     }
@@ -91,5 +95,14 @@ namespace Roguelike.DOTS
         /// Applied when the enemy collides with the player entity.
         /// </summary>
         public int mValue;
+    }
+
+    /// <summary>
+    /// Enableable marker set when an enemy has been queued for destruction in an entity command buffer.
+    /// Prevents the same enemy from being destroyed twice (and dropping two experience orbs)
+    /// before the command buffer is played back.
+    /// </summary>
+    public struct EnemyDeadTag : IComponentData, IEnableableComponent
+    {
     }
 }

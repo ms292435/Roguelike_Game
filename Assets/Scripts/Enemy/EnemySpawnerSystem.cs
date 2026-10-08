@@ -29,6 +29,11 @@ namespace Roguelike.DOTS
         private BatchMaterialID mMaterialID;
         private bool mInitialized;
         private EntityQuery mEnemyQuery;
+        /// <summary>
+        /// Enemies not yet queued for destruction. Only used for immediate destruction paths, because filtering on
+        /// an enableable component forces a sync with the jobs writing it.
+        /// </summary>
+        private EntityQuery mAliveEnemyQuery;
         private EntityQuery mExperienceQuery;
 
         /// <summary>
@@ -41,6 +46,7 @@ namespace Roguelike.DOTS
             pState.RequireForUpdate<EnemySpawnerManaged>();
 
             mEnemyQuery = SystemAPI.QueryBuilder().WithAll<EnemySpeedComponent>().Build();
+            mAliveEnemyQuery = SystemAPI.QueryBuilder().WithAll<EnemySpeedComponent>().WithDisabled<EnemyDeadTag>().Build();
             mExperienceQuery = SystemAPI.QueryBuilder().WithAll<ExperienceData>().Build();
         }
 
@@ -53,7 +59,8 @@ namespace Roguelike.DOTS
             // --- Benchmark Clear Processing ---
             if (BenchmarkController.ConsumeClearRequest())
             {
-                pState.EntityManager.DestroyEntity(mEnemyQuery);
+                // Enemies already queued for destruction are left to the pending command buffer
+                pState.EntityManager.DestroyEntity(mAliveEnemyQuery);
                 pState.EntityManager.DestroyEntity(mExperienceQuery);
                 EnemyCounterSystem.TotalEnemies = 0;
                 EnemyCounterSystem.VisibleEnemies = 0;
@@ -76,7 +83,8 @@ namespace Roguelike.DOTS
             // Clear immediately if target is 0
             if (lTargetEnemyCount == 0)
             {
-                pState.EntityManager.DestroyEntity(mEnemyQuery);
+                // Enemies already queued for destruction are left to the pending command buffer
+                pState.EntityManager.DestroyEntity(mAliveEnemyQuery);
                 pState.EntityManager.DestroyEntity(mExperienceQuery);
                 EnemyCounterSystem.TotalEnemies = 0;
                 EnemyCounterSystem.VisibleEnemies = 0;
@@ -87,7 +95,7 @@ namespace Roguelike.DOTS
             if (lCurrentEnemyCount > lTargetEnemyCount)
             {
                 int lExcess = lCurrentEnemyCount - lTargetEnemyCount;
-                using var lEntities = mEnemyQuery.ToEntityArray(Allocator.Temp);
+                using var lEntities = mAliveEnemyQuery.ToEntityArray(Allocator.Temp);
                 int lToDestroy = math.min(lExcess, lEntities.Length);
                 for (int i = 0; i < lToDestroy; i++)
                 {
