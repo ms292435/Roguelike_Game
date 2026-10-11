@@ -20,6 +20,8 @@ A performance benchmark and portfolio project developed in **Unity 6**. The same
 
 > Simulating **1,000,000** enemies with DOTS (40.57 ms) takes less time than simulating **10,000** with OOP (45.59 ms).
 
+A third phase then uses the profiler's Timeline to optimize the DOTS pipeline itself: the main-thread sync point is gone, the spatial grid costs half the CPU time, and the frame is now bound by the render thread rather than the simulation. See [Phase 3](#phase-3-profiling-driven-optimization).
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="Documentation/images/benchmark_chart_dark.png">
   <img alt="Enemy simulation time vs. horde size, OOP vs DOTS/ECS, log-log scale" src="Documentation/images/benchmark_chart_light.png">
@@ -34,12 +36,13 @@ Full methodology and per-step analysis: [Performance Comparison](#performance-co
 2. [Phase 1: Classic OOP Architecture & Profiling](#phase-1-classic-oop-architecture-profiling)
 3. [Phase 2: DOTS/ECS & Hybrid Architecture](#phase-2-dotsecs-hybrid-architecture)
 4. [Performance Comparison & Hardware Analysis](#performance-comparison-hardware-analysis)
-5. [Challenges & Lessons Learned](#challenges-lessons-learned)
-6. [Next Steps](#next-steps)
-7. [Getting Started](#getting-started)
-8. [Controls & In-Game Benchmark HUD](#controls-in-game-benchmark-hud)
-9. [Code Conventions](#code-conventions)
-10. [Tech Stack](#tech-stack)
+5. [Phase 3: Profiling-Driven Optimization](#phase-3-profiling-driven-optimization)
+6. [Challenges & Lessons Learned](#challenges-lessons-learned)
+7. [Next Steps](#next-steps)
+8. [Getting Started](#getting-started)
+9. [Controls & In-Game Benchmark HUD](#controls-in-game-benchmark-hud)
+10. [Code Conventions](#code-conventions)
+11. [Tech Stack](#tech-stack)
 
 ---
 
@@ -101,26 +104,31 @@ Even with the spatial grid, neighbor caching and separation updates spread over 
 
 Only the massive part of the game (enemies and experience orbs) moved to ECS. The player, the weapons and the UI remain MonoBehaviours: converting objects that exist once brings no measurable gain and makes gameplay code harder to iterate on.
 
+The architecture below is the current one, including the changes made in [Phase 3](#phase-3-profiling-driven-optimization).
+
 ### Data-Oriented Pipeline & Hybrid Bridge
 
 ```mermaid
 flowchart TD
     subgraph AuthoringLayer ["1. Subscene Authoring & Baking"]
-        EA["EnemyAuthoring"] -->|Baker| EC["Enemy Entity<br/>Speed + Damage + EnemyDeadTag"]
+        EA["EnemyAuthoring"] -->|Baker| EC["Enemy Entity<br/>Speed + Damage + Dead/Contact flags"]
         ESA["EnemySpawnerAuthoring"] -->|Baker| ED["Spawner Entity + EnemySpawnerData"]
     end
 
     subgraph SimulationPipeline ["2. SimulationSystemGroup (in update order)"]
         direction TB
-        ESS["<b>EnemySpawnerSystem</b><br/>Spawn / trim / clear the horde"]
-        EHS["<b>EnemyHashSystem</b><br/>Parallel spatial hash (NativeParallelMultiHashMap)"]
-        EMS["<b>EnemyMovementSystem</b><br/>Parallel Burst job: Seek + Separation"]
-        ECS["<b>EnemyCounterSystem</b><br/>Total count + Burst visibility job"]
-        EXS["<b>Experience Systems</b><br/>Orb attraction & collection"]
-        LATE["<b>LateSimulationSystemGroup</b><br/>DamageApplication · ExperienceSpawn"]
-        ECB["<b>EndSimulation ECB</b><br/>Structural changes played back once"]
-
-        ESS --> EHS --> EMS --> ECS --> EXS --> LATE --> ECB
+        subgraph Structural ["Structural phase (main thread, start of frame)"]
+            EDS["<b>EnemyDeathSystem</b><br/>Batch-destroy flagged enemies, drop XP, damage player"]
+            EXC["<b>ExperienceCollectionSystem</b><br/>Collect flagged orbs"]
+            ESS["<b>EnemySpawnerSystem</b><br/>Spawn / trim / clear the horde"]
+        end
+        subgraph Jobs ["Jobs (worker threads, never waited for during the frame)"]
+            EXM["<b>ExperienceMovementSystem</b><br/>Orb attraction"]
+            EHS["<b>EnemyHashSystem</b><br/>Parallel counting sort: sorted spatial grid"]
+            EMS["<b>EnemyMovementSystem</b><br/>Seek + Separation, flags deaths"]
+            ECS["<b>EnemyCounterSystem</b><br/>Total count + visibility job"]
+        end
+        EDS --> EXC --> ESS --> EXM --> EHS --> EMS --> ECS
     end
 
     subgraph HybridFacade ["3. Architectural Bridge (Facade Pattern)"]
@@ -142,7 +150,7 @@ flowchart TD
     PR -->|"DealDamage()"| EB
 
     EB -->|"Reads spatial grid"| EHS
-    EB -->|"Queues XP spawn & destroy"| ECB
+    EB -->|"Flags hit enemies (EnemyDeadTag)"| EDS
 ```
 
 ### Data-Oriented Design (DOD) Principles
@@ -162,19 +170,20 @@ Chunk: [ Transform | Transform | Transform ... ]   <-- read linearly, prefetched
 
 ### Core Systems Overview
 
-1. [`EnemySpawnerSystem`](Assets/Scripts/Enemy/EnemySpawnerSystem.cs): instantiates enemies along the camera edges in batches (up to 25,000 per frame) until the target count is reached, and trims or clears the horde when the target drops. Runs first so its immediate destructions never invalidate commands queued by other systems.
-2. [`EnemyHashSystem`](Assets/Scripts/Enemy/EnemyHashSystem.cs): fills a `NativeParallelMultiHashMap<int2, EnemyGridData>` with a parallel Burst job. Its capacity grows with the horde and shrinks with hysteresis to avoid frequent reallocations.
-3. [`EnemyMovementSystem`](Assets/Scripts/Enemy/EnemyMovementSystem.cs): parallel Burst `IJobEntity` combining *Seek* and *Separation*. Separation is time-sliced over 4 frames, limited to 4 neighbors, and visits cells in a spiral order to avoid directional bias. Enemies touching the player are destroyed through the command buffer.
-4. [`EnemyCounterSystem`](Assets/Scripts/UI/EnemyCounterSystem.cs): reads the total count from chunk metadata and counts on-screen enemies with a Burst job, for the HUD.
-5. [`ExperienceMovementSystem` / `ExperienceCollectionSystem`](Assets/Scripts/Experience/ExperienceMovementSystem.cs) and [`ExperienceSpawnSystem`](Assets/Scripts/Experience/ExperienceSpawnerSystem.cs): attract experience orbs towards the player, collect them, and spawn new ones where enemies die.
-6. [`DamageApplicationSystem`](Assets/Scripts/Enemy/EnemyDamageSystem.cs): sums the damage dealt by enemies during the frame and applies it to the player once.
+1. [`EnemyDeathSystem`](Assets/Scripts/Enemy/EnemyDeathSystem.cs): at the start of the frame, destroys every enemy flagged with `EnemyDeadTag` in one batch, drops their experience orbs, and applies the damage of the enemies that touched the player. Gathering the structural changes here means no enemy job ever has to be waited for during its frame.
+2. [`EnemySpawnerSystem`](Assets/Scripts/Enemy/EnemySpawnerSystem.cs): instantiates enemies along the camera edges in batches (up to 25,000 per frame) until the target count is reached, and trims or clears the horde when the target drops.
+3. [`EnemyHashSystem`](Assets/Scripts/Enemy/EnemyHashSystem.cs): builds a sorted spatial grid with a parallel counting sort (keys and counting, prefix sum, scatter), so the enemies of a cell are stored contiguously in memory.
+4. [`EnemyMovementSystem`](Assets/Scripts/Enemy/EnemyMovementSystem.cs): parallel Burst `IJobEntity` combining *Seek* and *Separation*. Separation is time-sliced over 4 frames, limited to 4 neighbors, and visits cells in a spiral order to avoid directional bias. Enemies touching the player are only flagged (`EnemyDeadTag` + `EnemyContactTag`), so the job never writes into a command buffer.
+5. [`EnemyCounterSystem`](Assets/Scripts/UI/EnemyCounterSystem.cs): reads the total count from chunk metadata and counts on-screen enemies with a Burst job, for the HUD.
+6. [`ExperienceMovementSystem` / `ExperienceCollectionSystem`](Assets/Scripts/Experience/ExperienceMovementSystem.cs): attract experience orbs towards the player, and collect them at the start of the next frame (through the `BeginSimulation` command buffer).
 
 ### Decoupling with the EnemyBridge Facade
 
 [`EnemyBridge`](Assets/Scripts/Enemy/EnemyBridge.cs) keeps the gameplay code independent from ECS:
 - **No leaky abstractions**: weapons and projectiles never import `Unity.Entities` nor access the ECS world directly.
 - **Encapsulated grid**: the cell size is `internal` to the simulation; weapons simply call `EnemyBridge.TryGetClosestEnemy(origin, range, out target)`.
-- **Single-pass damage**: `DealDamage` destroys the enemies in range and returns the hit count in one grid traversal, instead of a collision check followed by a damage query.
+- **Single-pass damage**: `DealDamage` flags the enemies in range and returns the hit count in one grid traversal, instead of a collision check followed by a damage query.
+- **Safe main-thread access**: the grid jobs are not waited for during their frame, so the bridge completes their handle before reading the grid (the jobs are long finished by then, so this costs nothing).
 
 ---
 
@@ -233,7 +242,7 @@ Up to 10,000 enemies the cost is dominated by the fixed overhead of the ECS pipe
 
 </details>
 
-### Multithreading in Action (Timeline, 100,000 enemies)
+### Multithreading in Action (Phase 2 Timeline, 100,000 enemies)
 
 ![DOTS Timeline - simulation at 100k enemies](Documentation/images/profiler_dots_timeline_simulation_100k.png)
 
@@ -274,6 +283,76 @@ Up to 10,000 enemies the cost is dominated by the fixed overhead of the ECS pipe
 
 ---
 
+<a id="phase-3-profiling-driven-optimization"></a>
+## Phase 3: Profiling-Driven Optimization
+
+The Phase 2 Timeline revealed two weaknesses in the DOTS pipeline: the main thread waited **2.47 ms** per frame for the enemy jobs, and building the spatial grid (`HashEnemiesJob`, 1.30 ms) cost more than moving the enemies. I fixed them one step at a time, **measuring each change on its own** so every gain (or absence of gain) can be attributed to a precise cause.
+
+### Step A: Removing the Synchronization Point
+
+`EnemyMovementJob` recorded the enemies touching the player into the end-of-simulation command buffer, which therefore had to wait for the job, and the main thread with it.
+
+- **Flags instead of commands**: the job now only enables `EnemyDeadTag` / `EnemyContactTag`. Enabling a component is not a structural change, so it is safe from a parallel job.
+- **One structural phase at the start of the frame**: `EnemyDeathSystem` destroys the flagged enemies in one batch before any job is scheduled. Nothing waits for the enemy jobs during the frame anymore: they keep running while the main thread prepares the rendering.
+
+| Enemies | 10k | 50k | 100k | 250k | 500k | 1M |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **In-game FPS, Phase 2** | ~300 | ~160 | ~100 | ~40 | ~20 | ~10 |
+| **In-game FPS, Step A** | **~350** | ~160 | ~100 | ~43 | ~22 | ~11 |
+
+A real gain with small hordes, negligible from 100k. The Timeline shows why:
+
+![Step A Timeline at 100k enemies](Documentation/images/profiler_phase3a_timeline_100k.png)
+
+The main thread now waits **inside the rendering** instead (`JobHandle.Complete`, 2.38 ms): the rendering job `RenderBoundsUpdateSystem:BoundsJob` could not start because every worker was still busy with `HashEnemiesJob`. **With all cores saturated, removing a sync point only moves the wait: the only way to go faster is to give the workers less work.**
+
+### Step B: A Sorted Spatial Grid
+
+Every enemy inserted itself into a single shared `NativeParallelMultiHashMap`: concurrent insertions through shared counters, and the enemies of a cell scattered in memory as a linked list. I replaced it with a **counting sort** that stores the enemies contiguously by cell:
+
+1. **Keys**: each enemy computes its cell and bucket, and writes them at its own index (no shared writes).
+2. **Offsets**: count the enemies per bucket, then a prefix sum gives the start of each bucket.
+3. **Scatter**: copy each enemy into its bucket, in one contiguous array.
+
+The **first version** ran steps 2 and 3 in a single job: the CPU time of the grid was halved, but that job took **2.71 ms on one thread** while the other workers sat idle, making the grid *longer* to build than before. The **second version** parallelizes them: the counting and the scatter use atomic increments spread over ~131,000 bucket counters (so threads rarely collide, unlike the hash map's shared counters), leaving a 0.17 ms prefix sum as the only sequential step.
+
+![Step B Timeline at 100k enemies - parallel sort](Documentation/images/profiler_phase3b_v2_grid_100k.png)
+
+| Spatial grid (100k enemies) | Start to finish | CPU time (all threads) | `EnemyMovementJob` |
+|:---|:---:|:---:|:---:|
+| Hash map (Step A) | 1.41 ms | ~11 ms | 1.26 ms |
+| Sequential counting sort (B v1) | ~3.0 ms | ~6 ms | **0.95 ms** |
+| **Parallel counting sort (B v2)** | **~1.7 ms**\* | **~6 ms** | — |
+
+\* While sharing the workers with the rendering jobs: since nothing waits for the simulation anymore, its jobs now interleave with the rendering ones.
+
+<details>
+<summary><b>First version: the single-threaded sort</b></summary>
+
+![Step B Timeline at 100k enemies - sequential sort](Documentation/images/profiler_phase3b_v1_grid_100k.png)
+
+</details>
+
+### Result: The Frame Is Now Bound by the Render Thread
+
+Frame time measured as a **median over a few hundred frames** (Highlights module):
+
+| Enemies | 50k | 100k | 250k | 500k | 1M |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| **Frame, Phase 2** (single frame) | 6.83 ms | 9.88 ms | 22.93 ms | 43.00 ms | 88.62 ms |
+| **Frame, Phase 3** (median) | 5.62 ms | 9.39 ms | 22.20 ms | 44.60 ms | 87.27 ms |
+
+The difference is within the measurement noise, and the whole-frame Timeline shows why:
+
+![Phase 3 Timeline - render thread bound](Documentation/images/profiler_phase3_renderthread_100k.png)
+
+- **The render thread sets the pace**: `RenderLoop` takes 10.73 ms of a 10.75 ms frame, and the main thread ends the frame waiting for it (`Gfx.WaitForPresentOnGfxThread`, 2.11 ms) while the workers go idle.
+- **The most expensive job is now a rendering job**: `ExecuteGpuUploads` (Entities Graphics) uploads the matrix of every enemy that moved (all of them, every frame): ~15–19 ms of CPU time across all threads at 100k, up to ~160–185 ms at 1M.
+
+This is **Amdahl's law** in practice: the simulation is now a small part of the frame, so optimizing it further cannot show in the framerate. Phase 3 did not raise the FPS, but it reached its real goal: the bottleneck has moved out of the game simulation, which no longer blocks the main thread and costs about half as much CPU time to partition.
+
+---
+
 <a id="challenges-lessons-learned"></a>
 ## Challenges & Lessons Learned
 
@@ -281,17 +360,20 @@ Up to 10,000 enemies the cost is dominated by the fixed overhead of the ECS pipe
 - **System order matters as soon as a system makes immediate structural changes.** Clearing the horde destroyed the XP orbs immediately, while a job had already queued a component addition on some of them, so the playback failed at random. The spawner now explicitly runs before the systems that record commands (`[UpdateBefore]`), instead of relying on an implicit order.
 - **Main-thread time is not job time.** In ECS, a system only schedules its job: its own time is close to zero, and the real cost appears where the main thread waits for the job (here, in the end-of-simulation command buffer). Measuring the whole `SimulationSystemGroup`, or using the Timeline view, gives the real picture.
 - **ECS has a fixed cost.** Below ~10,000 enemies, updating systems and scheduling jobs costs more than the enemies themselves, which is why the DOTS times barely move between 2,000 and 10,000.
+- **Removing a sync point does not remove work.** Letting the enemy jobs overlap with the rendering only helped while some cores were idle; once the workers were saturated, the wait simply moved into the rendering.
+- **Jobs that outlive their frame must be completed explicitly.** After Step A, the weapons read the spatial grid at the start of the next frame: the job had finished long before, but Unity's safety system still threw an exception because nothing had called `Complete()` on it.
+- **Less total work can still be slower.** The first sorted grid halved the CPU time but ran its sort on a single thread, lengthening the critical path. Parallelizing it with atomics spread over many counters fixed it.
+- **Change the measurement when the code changes.** Once the main thread stopped waiting for the jobs, `SimulationSystemGroup` dropped to a fraction of a millisecond without the simulation being cheaper: from then on, the frame time, the FPS and the Timeline job durations were the only meaningful metrics.
 
 ---
 
 <a id="next-steps"></a>
 ## Next Steps
 
-- **Let the movement job overlap with rendering**: `EnemyMovementJob` writes into the end-of-simulation command buffer (enemies touching the player), which forces the main thread to wait ~2.5 ms for it every frame at 100k enemies. Flagging those enemies instead and destroying them in a separate system would let the job keep running while the main thread prepares the rendering.
-- **Cheaper spatial grid**: replace the concurrent hash map insertions, now the most expensive job, with a sort-based grid (count enemies per cell, then fill contiguous arrays).
+- **Rendering**: the frame is now bound by the render thread and `ExecuteGpuUploads`. Avoiding the upload of hundreds of thousands of matrices every frame (e.g. a custom instanced renderer reading the enemy positions from a single GPU buffer) is the next real lever.
 - Move the spawning loop into a Burst job to remove the spikes when the horde grows.
 - Isolate the respective contributions of Burst and multithreading (single worker thread vs. all threads).
-- Measure medians over several hundred frames with the Profile Analyzer.
+- Re-measure Phase 2 with medians, for a strict before/after comparison with Phase 3.
 
 ---
 
@@ -329,8 +411,8 @@ Up to 10,000 enemies the cost is dominated by the fixed overhead of the ECS pipe
 ## Code Conventions
 
 - **Project naming conventions**: `m` prefix for fields (`mSpatialGrid`), `p` for parameters (`pDeltaTime`), `l` for local variables (`lPlayerPos`).
-- **Native memory**: every native container (`NativeArray`, `NativeParallelMultiHashMap`, `NativeReference`) is disposed in `OnDestroy()`.
-- **Safe structural changes**: existence checks and the `EnemyDeadTag` marker guard every command buffer destruction.
+- **Native memory**: every native container (`NativeArray`, `NativeReference`) is disposed in `OnDestroy()`.
+- **Safe structural changes**: all structural changes happen in one phase at the start of the frame; jobs and weapons only enable flags (`EnemyDeadTag`), so an enemy can never be destroyed twice.
 - **Documentation**: public types, systems and methods are documented with XML doc comments.
 
 ---
