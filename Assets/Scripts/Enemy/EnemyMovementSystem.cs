@@ -66,7 +66,7 @@ namespace Roguelike.DOTS
             {
                 mDeltaTime = pDeltaTime,
                 mPlayerPosition = pPlayerPosition,
-                mGrid = lHashSystem.mSpatialGrid,              // Spatial grid for neighbor detection
+                mGrid = lHashSystem.mGrid,                   // Spatial grid for neighbor detection
                 mCellSize = EnemyHashSystem.CellSize,        // Grid cell size in world units
                 mElapsedTime = (float)SystemAPI.Time.ElapsedTime,
                 mAnimationTiltAngle = math.radians(5f),
@@ -92,7 +92,10 @@ namespace Roguelike.DOTS
             public float mElapsedTime;
             public float mAnimationTiltAngle;
             public float mAnimationTiltSpeed;
-            [ReadOnly] public NativeParallelMultiHashMap<int2, EnemyGridData> mGrid;
+            /// <summary>
+            /// Sorted spatial grid built this frame by the EnemyHashSystem (read-only).
+            /// </summary>
+            public EnemySpatialGrid mGrid;
             
             /// <summary>
             /// Size of each grid cell in world units.
@@ -177,46 +180,46 @@ namespace Roguelike.DOTS
                             // Calculate target cell coordinates
                             int2 lCell = lGridPosition + lSpiral[i];
 
-                            // Attempt to retrieve first enemy in this cell
-                            if (mGrid.TryGetFirstValue(lCell, out EnemyGridData lOther, out var it))
+                            // The enemies of the cell are stored contiguously in its bucket
+                            mGrid.GetCellRange(lCell, out int lStart, out int lEnd);
+
+                            for (int j = lStart; j < lEnd && lNeighborCount < MAX_NEIGHBORS; j++)
                             {
-                                // Iterate through all enemies in this cell
-                                do
+                                EnemyGridData lOther = mGrid.mEntries[j];
+
+                                // Skip enemies of other cells sharing the bucket, and self-comparison
+                                if (math.all(lOther.mCell == lCell) && lOther.mEntity != pEntity)
                                 {
-                                    // Skip self-comparison
-                                    if (lOther.mEntity != pEntity)
+                                    // Get other enemy position and normalize to 2D
+                                    float3 lOtherPos = lOther.mPosition;
+                                    lOtherPos.z = 0f;
+                                    
+                                    // Calculate displacement vector from other to current
+                                    float3 lDiff = lCurrentPosition - lOtherPos;
+                                    float lSqrDist = math.lengthsq(lDiff);
+
+                                    // Check if within separation radius
+                                    if (lSqrDist < lSqrSepRadius)
                                     {
-                                        // Get other enemy position and normalize to 2D
-                                        float3 lOtherPos = lOther.mPosition;
-                                        lOtherPos.z = 0f;
-                                        
-                                        // Calculate displacement vector from other to current
-                                        float3 lDiff = lCurrentPosition - lOtherPos;
-                                        float lSqrDist = math.lengthsq(lDiff);
-
-                                        // Check if within separation radius
-                                        if (lSqrDist < lSqrSepRadius)
+                                        // Handle zero-distance edge case with hash-based fallback
+                                        // Ensures deterministic and well-distributed separation directions
+                                        if (lSqrDist < 1e-6f)
                                         {
-                                            // Handle zero-distance edge case with hash-based fallback
-                                            // Ensures deterministic and well-distributed separation directions
-                                            if (lSqrDist < 1e-6f)
-                                            {
-                                                // Generate pseudo-random direction using entity index hash
-                                                uint h = (uint)pEntity.Index * 2654435761u;
-                                                lDiff = new float3(
-                                                    ((h & 0xFF) / 127.5f) - 1f,
-                                                    (((h >> 8) & 0xFF) / 127.5f) - 1f,
-                                                    0f
-                                                ) * 0.01f;
-                                            }
-
-                                            // Calculate separation force scaled by proximity
-                                            float force = 1f - (lSqrDist / lSqrSepRadius);
-                                            lSeparationForce += math.normalizesafe(lDiff) * force;
-                                            lNeighborCount++;
+                                            // Generate pseudo-random direction using entity index hash
+                                            uint h = (uint)pEntity.Index * 2654435761u;
+                                            lDiff = new float3(
+                                                ((h & 0xFF) / 127.5f) - 1f,
+                                                (((h >> 8) & 0xFF) / 127.5f) - 1f,
+                                                0f
+                                            ) * 0.01f;
                                         }
+
+                                        // Calculate separation force scaled by proximity
+                                        float force = 1f - (lSqrDist / lSqrSepRadius);
+                                        lSeparationForce += math.normalizesafe(lDiff) * force;
+                                        lNeighborCount++;
                                     }
-                                } while (mGrid.TryGetNextValue(out lOther, ref it) && lNeighborCount < MAX_NEIGHBORS);
+                                }
                             }
                         }
                     }

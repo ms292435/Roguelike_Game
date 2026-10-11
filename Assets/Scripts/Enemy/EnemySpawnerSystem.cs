@@ -77,11 +77,8 @@ namespace Roguelike.DOTS
                 if (lHashHandle != SystemHandle.Null)
                 {
                     ref var lHashSystem = ref pState.WorldUnmanaged.GetUnsafeSystemRef<EnemyHashSystem>(lHashHandle);
-                    if (lHashSystem.mSpatialGrid.IsCreated)
-                    {
-                        lHashSystem.mGridJobHandle.Complete();
-                        lHashSystem.mSpatialGrid.Clear();
-                    }
+                    lHashSystem.mGridJobHandle.Complete();
+                    lHashSystem.mGrid.mCount = 0;
                 }
                 return;
             }
