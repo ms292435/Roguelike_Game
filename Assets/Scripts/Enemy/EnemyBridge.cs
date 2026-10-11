@@ -6,13 +6,14 @@ namespace Roguelike.DOTS
 {
     /// <summary>
     /// Architectural Bridge / Facade between high-level MonoBehaviour gameplay systems and DOTS/ECS.
-    /// Encapsulates all unmanaged ECS queries, spatial grid traversals, and entity command buffers,
+    /// Encapsulates all unmanaged ECS queries and spatial grid traversals,
     /// shielding gameplay scripts (Weapons, Projectiles, etc.) from ECS implementation details.
     /// </summary>
     public static class EnemyBridge
     {
         /// <summary>
-        /// Deals damage to all enemies within an area of effect, creates experience orbs, and destroys entities.
+        /// Kills all enemies within an area of effect by enabling their EnemyDeadTag.
+        /// The EnemyDeathSystem destroys them and drops their experience orbs at the start of the simulation.
         /// </summary>
         /// <param name="pPosition">Center of the impact area in world coordinates.</param>
         /// <param name="pRadius">Radius of the impact circle.</param>
@@ -29,8 +30,9 @@ namespace Roguelike.DOTS
             ref var lHashSystem = ref lWorld.Unmanaged.GetUnsafeSystemRef<EnemyHashSystem>(lHashSystemHandle);
             if (!lHashSystem.mSpatialGrid.IsCreated) return 0;
 
-            var lEcbSystem = lWorld.GetOrCreateSystemManaged<EndSimulationEntityCommandBufferSystem>();
-            var lEcb = lEcbSystem.CreateCommandBuffer();
+            // The grid jobs are not waited for during their frame: complete them before reading on the main thread
+            lHashSystem.mGridJobHandle.Complete();
+
             var lEntityManager = lWorld.EntityManager;
 
             float lCellSize = EnemyHashSystem.CellSize;
@@ -60,14 +62,11 @@ namespace Roguelike.DOTS
 
                             if (math.lengthsq(lEnemyPos - lPos) <= lSqrRadius)
                             {
-                                // Skip enemies already destroyed or already queued for destruction this frame
+                                // Skip enemies already destroyed or already dead this frame
                                 if (lEntityManager.Exists(lData.mEntity)
                                     && !lEntityManager.IsComponentEnabled<EnemyDeadTag>(lData.mEntity))
                                 {
                                     lEntityManager.SetComponentEnabled<EnemyDeadTag>(lData.mEntity, true);
-                                    Entity lXpEntity = lEcb.CreateEntity();
-                                    lEcb.AddComponent(lXpEntity, new SpawnExperienceTag { mPosition = lEnemyPos });
-                                    lEcb.DestroyEntity(lData.mEntity);
                                     lHitCount++;
                                 }
                             }
@@ -99,6 +98,9 @@ namespace Roguelike.DOTS
 
             ref var lHashSystem = ref lWorld.Unmanaged.GetUnsafeSystemRef<EnemyHashSystem>(lHashHandle);
             if (!lHashSystem.mSpatialGrid.IsCreated) return false;
+
+            // The grid jobs are not waited for during their frame: complete them before reading on the main thread
+            lHashSystem.mGridJobHandle.Complete();
 
             float lCellSize = EnemyHashSystem.CellSize;
             float3 lFrom = new float3(pFrom.x, pFrom.y, 0f);
@@ -157,6 +159,9 @@ namespace Roguelike.DOTS
 
             ref var lHashSystem = ref lWorld.Unmanaged.GetUnsafeSystemRef<EnemyHashSystem>(lHashHandle);
             if (!lHashSystem.mSpatialGrid.IsCreated) return false;
+
+            // The grid jobs are not waited for during their frame: complete them before reading on the main thread
+            lHashSystem.mGridJobHandle.Complete();
 
             float lCellSize = EnemyHashSystem.CellSize;
             float3 lPos = new float3(pPosition.x, pPosition.y, 0f);

@@ -10,7 +10,9 @@ namespace Roguelike.DOTS
     /// <summary>
     /// System that manages enemy movement toward the player with separation and collision avoidance.
     /// Uses spatial hashing for efficient neighbor detection and applies smooth separation forces.
-    /// Executes during the simulation phase each frame.
+    /// The movement job never records into an entity command buffer: nothing waits for it during the frame,
+    /// so it keeps running on the worker threads while the main thread prepares the rendering.
+    /// It is completed at the start of the next simulation by the EnemyDeathSystem.
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct EnemyMovementSystem : ISystem
@@ -48,7 +50,7 @@ namespace Roguelike.DOTS
 
         /// <summary>
         /// Schedules the parallel movement job for all enemies.
-        /// Accesses the spatial grid from EnemyHashSystem and creates command buffer.
+        /// Accesses the spatial grid from EnemyHashSystem.
         /// </summary>
         /// <param name="pDeltaTime">Frame delta time in seconds.</param>
         /// <param name="pPlayerPosition">Current player world position.</param>
@@ -59,10 +61,6 @@ namespace Roguelike.DOTS
             var lHashSystemHandle = pState.WorldUnmanaged.GetExistingUnmanagedSystem<EnemyHashSystem>();
             ref var lHashSystem = ref pState.WorldUnmanaged.GetUnsafeSystemRef<EnemyHashSystem>(lHashSystemHandle);
 
-            // Create an entity command buffer for deferred entity creation and destruction
-            var lEcbSingleton = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
-            var lEcb = lEcbSingleton.CreateCommandBuffer(pState.WorldUnmanaged).AsParallelWriter();
-
             // Schedule the movement job with all necessary data
             pState.Dependency = new EnemyMovementJob
             {
@@ -70,12 +68,14 @@ namespace Roguelike.DOTS
                 mPlayerPosition = pPlayerPosition,
                 mGrid = lHashSystem.mSpatialGrid,              // Spatial grid for neighbor detection
                 mCellSize = EnemyHashSystem.CellSize,        // Grid cell size in world units
-                mECB = lEcb,                                 // Command buffer for entity operations
                 mElapsedTime = (float)SystemAPI.Time.ElapsedTime,
                 mAnimationTiltAngle = math.radians(5f),
                 mAnimationTiltSpeed = 5f,
                 mJobFrameCount = mSystemFrameCount
             }.ScheduleParallel(pState.Dependency);
+
+            // The movement job reads the grid and depends on the hashing job: completing it releases the grid
+            lHashSystem.mGridJobHandle = pState.Dependency;
         }
 
         /// <summary>
@@ -83,7 +83,7 @@ namespace Roguelike.DOTS
         /// Handles player collision detection, separation forces, and animation.
         /// </summary>
         [BurstCompile]
-        [WithPresent(typeof(EnemyDeadTag))]
+        [WithPresent(typeof(EnemyDeadTag), typeof(EnemyContactTag))]
         public partial struct EnemyMovementJob : IJobEntity
         {
             public float mDeltaTime;
@@ -98,23 +98,20 @@ namespace Roguelike.DOTS
             /// Size of each grid cell in world units.
             /// </summary>
             public float mCellSize;
-            public EntityCommandBuffer.ParallelWriter mECB;
 
             /// <summary>
             /// Executes movement logic for a single enemy entity.
             /// Processes collision with player, separation from nearby enemies, and directional movement.
             /// </summary>
-            /// <param name="pSortKey">Entity index for command buffer ordering.</param>
             /// <param name="pEntity">The enemy entity being updated.</param>
             /// <param name="pTransform">Enemy transform component (modified).</param>
             /// <param name="pSpeed">Enemy speed component with smoothed separation (modified).</param>
-            /// <param name="pDamage">Enemy damage component (read-only).</param>
-            /// <param name="pDead">Death marker, enabled once the enemy is queued for destruction.</param>
-            private void Execute([EntityIndexInQuery] int pSortKey, Entity pEntity,
-                ref LocalTransform pTransform, ref EnemySpeedComponent pSpeed, in EnemyDamageComponent pDamage,
-                EnabledRefRW<EnemyDeadTag> pDead)
+            /// <param name="pDead">Death marker, enabled when the enemy dies.</param>
+            /// <param name="pContact">Contact marker, enabled when the enemy dies by touching the player.</param>
+            private void Execute(Entity pEntity, ref LocalTransform pTransform, ref EnemySpeedComponent pSpeed,
+                EnabledRefRW<EnemyDeadTag> pDead, EnabledRefRW<EnemyContactTag> pContact)
             {
-                // Already queued for destruction (e.g. hit by a weapon this frame): nothing left to simulate
+                // Already dead (e.g. hit by a weapon this frame): nothing left to simulate
                 if (pDead.ValueRO) return;
 
                 // Get current enemy position and normalize to 2D space (z = 0)
@@ -129,19 +126,12 @@ namespace Roguelike.DOTS
                 float lSqrDistanceToPlayer = math.lengthsq(lPlayerPosition - lCurrentPosition);
 
                 // --- Death Detection: Only when enemy touches player ---
+                // Only flags the enemy: the EnemyDeathSystem destroys it, damages the player and drops the
+                // experience orb at the start of the next simulation, outside of any job
                 if (lSqrDistanceToPlayer < 1f)
                 {
-                    // Create phantom entity to deliver damage to player
-                    var lDmgEntity = mECB.CreateEntity(pSortKey);
-                    mECB.AddComponent(pSortKey, lDmgEntity, new DamagePlayerTag { mValue = pDamage.mValue });
-
-                    // Create phantom entity to spawn experience orb at death position
-                    var lXpEntity = mECB.CreateEntity(pSortKey);
-                    mECB.AddComponent(pSortKey, lXpEntity, new SpawnExperienceTag { mPosition = lCurrentPosition });
-
-                    // Destroy the enemy entity and mark it so no other code path destroys it again
                     pDead.ValueRW = true;
-                    mECB.DestroyEntity(pSortKey, pEntity);
+                    pContact.ValueRW = true;
                     return;
                 }
 

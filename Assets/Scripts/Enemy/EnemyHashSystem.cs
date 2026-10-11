@@ -1,6 +1,7 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
@@ -32,6 +33,13 @@ namespace Roguelike.DOTS
         internal const float CellSize = 2f;
 
         public NativeParallelMultiHashMap<int2, EnemyGridData> mSpatialGrid;
+
+        /// <summary>
+        /// Handle of the last job using the spatial grid (the hashing job, then the movement job that reads it).
+        /// Since nothing waits for these jobs during their frame, any main-thread access to the grid
+        /// must complete this handle first.
+        /// </summary>
+        public JobHandle mGridJobHandle;
         private EntityQuery mEnemyQuery;
 
         [BurstCompile]
@@ -68,6 +76,10 @@ namespace Roguelike.DOTS
         [BurstCompile]
         public void OnUpdate(ref SystemState pState)
         {
+            // The grid is still read by the previous frame's movement job, which nothing waits for during its frame.
+            // Complete it before clearing or resizing the grid on the main thread.
+            mGridJobHandle.Complete();
+
             // Count the current number of enemies in the world
             int lEnemyCount = mEnemyQuery.CalculateEntityCount();
 
@@ -108,6 +120,7 @@ namespace Roguelike.DOTS
                 mGridWriter = lGridWriter,
                 mCellSize = CellSize,  // Each grid cell represents a 2x2 unit area
             }.ScheduleParallel(pState.Dependency);
+            mGridJobHandle = pState.Dependency;
         }
     }
 

@@ -55,9 +55,11 @@ namespace Roguelike.DOTS
                     mValue = pAuthoring.mDamage                  // Transfer editor-configured damage value
                 });
 
-                // Add the death marker, disabled until the enemy is queued for destruction
+                // Add the death and contact markers, disabled until the enemy dies or touches the player
                 AddComponent<EnemyDeadTag>(lEntity);
                 SetComponentEnabled<EnemyDeadTag>(lEntity, false);
+                AddComponent<EnemyContactTag>(lEntity);
+                SetComponentEnabled<EnemyContactTag>(lEntity, false);
             }
         }
     }
@@ -98,11 +100,20 @@ namespace Roguelike.DOTS
     }
 
     /// <summary>
-    /// Enableable marker set when an enemy has been queued for destruction in an entity command buffer.
-    /// Prevents the same enemy from being destroyed twice (and dropping two experience orbs)
-    /// before the command buffer is played back.
+    /// Enableable marker set when an enemy dies (hit by a weapon or touching the player).
+    /// Enabling a bit is not a structural change, so it can be written from parallel jobs and from the
+    /// main thread without a command buffer. Dead enemies are destroyed in a single batch by the
+    /// EnemyDeathSystem at the start of the next simulation, and are skipped by every other code path until then.
     /// </summary>
     public struct EnemyDeadTag : IComponentData, IEnableableComponent
+    {
+    }
+
+    /// <summary>
+    /// Enableable marker set alongside EnemyDeadTag when the enemy died by touching the player,
+    /// so the EnemyDeathSystem knows which deaths must damage the player.
+    /// </summary>
+    public struct EnemyContactTag : IComponentData, IEnableableComponent
     {
     }
 }

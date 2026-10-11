@@ -55,7 +55,9 @@ namespace Roguelike.DOTS
 
         /// <summary>
         /// Schedules the parallel experience movement job.
-        /// Creates command buffer for marking collected orbs.
+        /// Collected orbs are marked through the BeginSimulation command buffer: it is played back at the start of the
+        /// next frame, so no structural change happens at the end of the simulation, where it would force every
+        /// running job (including the enemy movement job) to complete.
         /// </summary>
         /// <param name="pPlayerPos">Current player world position.</param>
         /// <param name="pAttractRadius">Radius at which orbs start attracting toward player.</param>
@@ -65,8 +67,8 @@ namespace Roguelike.DOTS
         private void ScheduleJobs(ref SystemState pState,
             float3 pPlayerPos, float pAttractRadius, float pCollectRadius, float pDeltaTime)
         {
-            // Create an entity command buffer for marking collected orbs
-            var lEcbSingleton = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
+            // Create an entity command buffer for marking collected orbs, played back at the start of the next frame
+            var lEcbSingleton = SystemAPI.GetSingleton<BeginSimulationEntityCommandBufferSystem.Singleton>();
             var lEcb = lEcbSingleton.CreateCommandBuffer(pState.WorldUnmanaged).AsParallelWriter();
 
             // Schedule the movement job with all necessary parameters
@@ -154,13 +156,15 @@ namespace Roguelike.DOTS
 
     /// <summary>
     /// System that processes collected experience orbs and awards experience to player.
-    /// Executes after the movement system to process all collected orbs in a single pass.
-    /// Runs during the simulation phase.
+    /// Runs at the start of the simulation, with the other structural changes and before any job is scheduled,
+    /// so destroying the collected orbs never has to wait for a running job.
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(ExperienceMovementSystem))]
+    [UpdateBefore(typeof(EnemySpawnerSystem))]
     public partial struct ExperienceCollectionSystem : ISystem
     {
+        private EntityQuery mCollectedQuery;
+
         /// <summary>
         /// Initializes the system and sets up requirements.
         /// </summary>
@@ -168,6 +172,8 @@ namespace Roguelike.DOTS
         {
             // Require at least one collected orb to be present
             pState.RequireForUpdate<ExperienceCollectedEvent>();
+
+            mCollectedQuery = SystemAPI.QueryBuilder().WithAll<ExperienceData, ExperienceCollectedEvent>().Build();
         }
 
         /// <summary>
@@ -180,26 +186,21 @@ namespace Roguelike.DOTS
             // Exit early if player hasn't been instantiated
             if (Player.Instance == null) return;
 
-            // Create an entity command buffer for deferred entity destruction
-            var lEcb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
-                               .CreateCommandBuffer(pState.WorldUnmanaged);
-
             // Accumulator for total experience from all collected orbs
             float lTotalXP = 0f;
 
             // --- Collection Processing ---
             // Query all orbs marked with ExperienceCollectedEvent
-            foreach (var (lXp, lEntity) in
+            foreach (var lXp in
                 SystemAPI.Query<RefRO<ExperienceData>>()
-                    .WithAll<ExperienceCollectedEvent>()
-                    .WithEntityAccess())
+                    .WithAll<ExperienceCollectedEvent>())
             {
                 // Accumulate experience value from collected orb
                 lTotalXP += lXp.ValueRO.mValue;
-                
-                // Queue orb for destruction
-                lEcb.DestroyEntity(lEntity); 
             }
+
+            // Destroy all collected orbs in one structural change
+            pState.EntityManager.DestroyEntity(mCollectedQuery);
 
             // --- Experience Award ---
             // Award accumulated experience to player if any was collected

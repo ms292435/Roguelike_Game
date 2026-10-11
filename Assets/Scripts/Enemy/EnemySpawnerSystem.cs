@@ -13,7 +13,15 @@ namespace Roguelike.DOTS
     /// System that manages enemy spawning at screen edges based on difficulty progression.
     /// Runs on the main thread to access Unity's Camera and rendering systems.
     /// Instantiates enemy waves with random spawn positions around viewport boundaries.
+    /// Runs before the systems that record commands on enemies and experience orbs: the clear and trim paths
+    /// destroy entities immediately, which would otherwise invalidate commands still pending in the command buffer.
+    /// Also runs before the TransformSystemGroup, so that its structural changes do not force the transform jobs
+    /// of the current frame to complete early.
     /// </summary>
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateBefore(typeof(TransformSystemGroup))]
+    [UpdateBefore(typeof(ExperienceMovementSystem))]
+    [UpdateBefore(typeof(EnemyHashSystem))]
     public partial struct EnemySpawnerSystem : ISystem
     {
         /// <summary>
@@ -71,6 +79,7 @@ namespace Roguelike.DOTS
                     ref var lHashSystem = ref pState.WorldUnmanaged.GetUnsafeSystemRef<EnemyHashSystem>(lHashHandle);
                     if (lHashSystem.mSpatialGrid.IsCreated)
                     {
+                        lHashSystem.mGridJobHandle.Complete();
                         lHashSystem.mSpatialGrid.Clear();
                     }
                 }
