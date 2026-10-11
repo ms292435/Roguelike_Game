@@ -2,16 +2,21 @@ using UnityEngine;
 
 namespace Roguelike
 {
+    /// <summary>
+    /// Singleton manager handling global sound effect playback for weapons and enemy deaths.
+    /// Manages independent audio sources with pitch randomization and rate-limiting to prevent clipping.
+    /// </summary>
     public class AudioManager : MonoBehaviour
     {
+        /// <summary>
+        /// Singleton instance accessible globally across gameplay systems.
+        /// </summary>
         public static AudioManager Instance { get; private set; }
 
         [Header("Audio Sources")]
         [SerializeField] private AudioSource mWeaponSource;
         [SerializeField] private AudioSource mEnemiesSource;
 
-
-        // Limiter to avoid too many death sounds playing at once
         private float mLastDeathSoundTime;
         private const float mDeathSoundCooldown = 0.05f;
 
@@ -25,6 +30,18 @@ namespace Roguelike
             Instance = this;
         }
 
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
+
+        /// <summary>
+        /// Plays an enemy death sound effect with pitch modulation and rate-limiting cooldown.
+        /// </summary>
+        /// <param name="pClip">The AudioClip to play.</param>
         public void PlayEnemyDeathSound(AudioClip pClip)
         {
             if (pClip == null || mEnemiesSource == null) return;
@@ -34,14 +51,15 @@ namespace Roguelike
             {
                 // Randomize pitch slightly to add variety to the sound effects
                 mEnemiesSource.pitch = Random.Range(0.8f, 1.2f);
-
-                // PlayOneShot is used to allow multiple sounds to overlap without cutting each other off
                 mEnemiesSource.PlayOneShot(pClip);
-
                 mLastDeathSoundTime = Time.time;
             }
         }
 
+        /// <summary>
+        /// Plays a weapon attack sound effect with subtle pitch modulation.
+        /// </summary>
+        /// <param name="pClip">The AudioClip to play.</param>
         public void PlayWeaponSound(AudioClip pClip)
         {
             if (pClip != null && mWeaponSource != null)

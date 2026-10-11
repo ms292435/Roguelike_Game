@@ -4,6 +4,10 @@ using UnityEngine.SceneManagement;
 
 namespace Roguelike
 {
+    /// <summary>
+    /// Singleton manager orchestrating game states, UI panels (Main Menu, Game Over), and scene reloads.
+    /// Manages game timescale and frame-rate settings.
+    /// </summary>
     public class GameManager : MonoBehaviour
     {
         [Header("UI Reference")]
@@ -17,40 +21,55 @@ namespace Roguelike
 
         private static bool mSkipMainMenu = false;
 
+        /// <summary>
+        /// Displays the game over panel, sets final score text, and pauses game simulation.
+        /// </summary>
         public void DisplayGameOver()
         {
             if (mGameOverPanel != null) mGameOverPanel.SetActive(true);
 
-            mScoreText.text = $"Score: {Score}";
+            if (mScoreText != null)
+                mScoreText.text = $"Score: {Score}";
+
             // Stop time to freeze the game when game over is displayed
             Time.timeScale = 0f;
         }
+
+        /// <summary>
+        /// Starts active gameplay, hides menus, disables VSync and frame cap for benchmark measurements.
+        /// </summary>
         public void StartGame()
         {
-            mMainMenuPanel.SetActive(false);
+            if (mMainMenuPanel != null) mMainMenuPanel.SetActive(false);
             if (mGameOverPanel != null) mGameOverPanel.SetActive(false);
 
+            Application.targetFrameRate = -1;
+            QualitySettings.vSyncCount = 0;
             Time.timeScale = 1f;
         }
 
+        /// <summary>
+        /// Restarts the active scene and bypasses the main menu directly into gameplay.
+        /// </summary>
         public static void ReplayGame()
         {
             mSkipMainMenu = true;
-            // Set back time scale to normal
             Time.timeScale = 1f;
-            // Get the current active scene and reload it
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 
+        /// <summary>
+        /// Shows the main menu UI and pauses game simulation.
+        /// </summary>
         private void ShowMainMenu()
         {
-            mMainMenuPanel.SetActive(true);
+            if (mMainMenuPanel != null) mMainMenuPanel.SetActive(true);
             if (mGameOverPanel != null) mGameOverPanel.SetActive(false);
 
             Time.timeScale = 0f;
         }
 
-        void Awake()
+        private void Awake()
         {
             if (Instance != null && Instance != this)
             {
@@ -58,6 +77,7 @@ namespace Roguelike
                 return;
             }
             Instance = this;
+
             if (mSkipMainMenu)
             {
                 StartGame();
@@ -68,7 +88,8 @@ namespace Roguelike
                 ShowMainMenu();
             }
         }
-        void OnDestroy()
+
+        private void OnDestroy()
         {
             if (Instance == this)
             {
