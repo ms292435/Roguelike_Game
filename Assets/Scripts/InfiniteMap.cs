@@ -14,6 +14,17 @@ namespace Roguelike
         public float mTileSize = 100f;
         public int mViewDistance = 2; // Chunk radius around the player
 
+        [Tooltip("Depth of the ground. Enemies are opaque and sorted by the depth buffer between z = 0.05 and 0.51 " +
+                 "(the camera is at z = 0): the ground must be further away to stay behind them.")]
+        public float mGroundDepth = 1f;
+
+        [Tooltip("Render queue of the ground: in the opaque range, before the Aura (2001) and the enemies (2450 and more), " +
+                 "so that everything is drawn over it whatever the depth testing of the sprite shader.")]
+        public int mGroundRenderQueue = 2000;
+
+        // Copy of the ground material with its own render queue, shared by every tile
+        private readonly Dictionary<Material, Material> mGroundMaterials = new();
+
         private readonly Dictionary<Vector2Int, GameObject> mActiveTiles = new();
         private Vector2Int mCurrentChunk;
         private readonly List<Vector2Int> mRequiredChunksList = new();
@@ -57,7 +68,7 @@ namespace Roguelike
                 if (!mActiveTiles.ContainsKey(lCoord))
                 {
                     GameObject lTile = GetTileToPlace(mChunksToRemove);
-                    lTile.transform.position = new Vector3(lCoord.x * mTileSize, lCoord.y * mTileSize, 0f);
+                    lTile.transform.position = new Vector3(lCoord.x * mTileSize, lCoord.y * mTileSize, mGroundDepth);
                     mActiveTiles.Add(lCoord, lTile);
                 }
             }
@@ -82,7 +93,30 @@ namespace Roguelike
                 return lRecycledTile;
             }
 
-            return Instantiate(mTilePrefab, transform);
+            GameObject lTile = Instantiate(mTilePrefab, transform);
+            ApplyGroundRenderQueue(lTile);
+            return lTile;
+        }
+
+        /// <summary>
+        /// Gives the renderers of a new tile a copy of their material drawn in the ground render queue.
+        /// The copies are shared between tiles, so that they keep batching together.
+        /// </summary>
+        /// <param name="pTile">The newly instantiated tile.</param>
+        private void ApplyGroundRenderQueue(GameObject pTile)
+        {
+            foreach (var lRenderer in pTile.GetComponentsInChildren<Renderer>())
+            {
+                Material lSource = lRenderer.sharedMaterial;
+                if (lSource == null) continue;
+
+                if (!mGroundMaterials.TryGetValue(lSource, out Material lGroundMaterial))
+                {
+                    lGroundMaterial = new Material(lSource) { renderQueue = mGroundRenderQueue };
+                    mGroundMaterials[lSource] = lGroundMaterial;
+                }
+                lRenderer.sharedMaterial = lGroundMaterial;
+            }
         }
 
         /// <summary>

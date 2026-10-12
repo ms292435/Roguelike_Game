@@ -20,6 +20,26 @@ namespace Roguelike.DOTS
     public partial struct ExperienceMovementSystem : ISystem
     {
         /// <summary>
+        /// Depth of the experience orbs. Orbs and enemies are opaque and sorted by the depth buffer (the camera is
+        /// at z = 0): orbs sit behind every enemy (z between 0.05 and 0.51), in front of the Aura (0.6) and the ground (1).
+        /// </summary>
+        public const float OrbDepth = 0.55f;
+        /// <summary>
+        /// Speed of the orbs pulled by a magnet pickup, faster than the regular attraction.
+        /// </summary>
+        private const float MagnetAttractionSpeed = 25f;
+
+        private static bool sAttractAllRequested;
+
+        /// <summary>
+        /// Makes every experience orb fly to the player during the next update (magnet pickup).
+        /// </summary>
+        public static void RequestAttractAll()
+        {
+            sAttractAllRequested = true;
+        }
+
+        /// <summary>
         /// Initializes the system and sets up requirements.
         /// </summary>
         public void OnCreate(ref SystemState pState)
@@ -49,8 +69,12 @@ namespace Roguelike.DOTS
             // Get frame delta time for frame-rate independent movement
             float lDeltaTime = SystemAPI.Time.DeltaTime;
 
+            // Consume the magnet request: every orb is attracted this update
+            bool lAttractAll = sAttractAllRequested;
+            sAttractAllRequested = false;
+
             // Schedule the movement job for all experience orbs
-            ScheduleJobs(ref pState, lPlayerPos, lAttractRadius, lCollectRadius, lDeltaTime);
+            ScheduleJobs(ref pState, lPlayerPos, lAttractRadius, lCollectRadius, lDeltaTime, lAttractAll);
         }
 
         /// <summary>
@@ -63,9 +87,10 @@ namespace Roguelike.DOTS
         /// <param name="pAttractRadius">Radius at which orbs start attracting toward player.</param>
         /// <param name="pCollectRadius">Radius at which orbs are collected by player.</param>
         /// <param name="pDeltaTime">Frame delta time in seconds.</param>
+        /// <param name="pAttractAll">True when a magnet pickup attracts every orb.</param>
         [BurstCompile]
         private void ScheduleJobs(ref SystemState pState,
-            float3 pPlayerPos, float pAttractRadius, float pCollectRadius, float pDeltaTime)
+            float3 pPlayerPos, float pAttractRadius, float pCollectRadius, float pDeltaTime, bool pAttractAll)
         {
             // Create an entity command buffer for marking collected orbs, played back at the start of the next frame
             var lEcbSingleton = SystemAPI.GetSingleton<BeginSimulationEntityCommandBufferSystem.Singleton>();
@@ -80,6 +105,8 @@ namespace Roguelike.DOTS
                 mSqrCollectRadius = pCollectRadius * pCollectRadius,
                 mDeltaTime = pDeltaTime,
                 mECB = lEcb,
+                mAttractAll = pAttractAll,
+                mMagnetSpeed = MagnetAttractionSpeed,
             }.ScheduleParallel(pState.Dependency);
         }
 
@@ -95,6 +122,12 @@ namespace Roguelike.DOTS
             public float mSqrCollectRadius;
             public float mDeltaTime;
             public EntityCommandBuffer.ParallelWriter mECB;
+
+            /// <summary>
+            /// True when a magnet pickup attracts every orb, at mMagnetSpeed at least.
+            /// </summary>
+            public bool mAttractAll;
+            public float mMagnetSpeed;
 
             /// <summary>
             /// Executes movement logic for a single experience orb entity.
@@ -126,6 +159,13 @@ namespace Roguelike.DOTS
                 if (!pXp.mIsAttracted && lSqrDist < mSqrAttractRadius)
                     pXp.mIsAttracted = true;
 
+                // Magnet pickup: every orb flies to the player, wherever it is
+                if (mAttractAll)
+                {
+                    pXp.mIsAttracted = true;
+                    pXp.mAttractionSpeed = math.max(pXp.mAttractionSpeed, mMagnetSpeed);
+                }
+
                 // --- Movement Logic ---
                 // Apply movement if attraction is active
                 if (pXp.mIsAttracted)
@@ -139,8 +179,8 @@ namespace Roguelike.DOTS
                     // Ensure position remains in 2D space
                     lPos.z = 0f;
                     
-                    // Update transform with new position
-                    pTransform.Position = lPos;   // Keeps the orb scale (orbs dropped by elites are bigger)
+                    // Update transform with new position, at the orb depth (keeps the orb scale: elite orbs are bigger)
+                    pTransform.Position = new float3(lPos.x, lPos.y, OrbDepth);
                     
                     // Recalculate squared distance after movement
                     lSqrDist = math.lengthsq(lPlayerPos - lPos);

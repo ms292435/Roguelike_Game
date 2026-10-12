@@ -32,6 +32,28 @@ namespace Roguelike.DOTS
         /// Experience given by the orb dropped when a weapon kills this enemy.
         /// </summary>
         public float mExperience = 1f;
+
+        /// <summary>
+        /// Chance (0 to 1) of dropping a random pickup (heal, magnet or bomb) when killed by a weapon.
+        /// Kept very low on regular enemies, which die by thousands.
+        /// </summary>
+        public float mPickupDropChance = 0.0002f;
+
+        /// <summary>
+        /// When true, touching the player damages it without killing the enemy, which bounces back instead (boss).
+        /// Regular enemies explode on contact.
+        /// </summary>
+        public bool mSurvivesContact = false;
+
+        /// <summary>
+        /// Marks the final boss: its health is shown on the HUD, and killing it wins the game.
+        /// </summary>
+        public bool mIsBoss = false;
+
+        /// <summary>
+        /// When true, the enemy ignores the separation from its neighbors and walks through the horde (boss).
+        /// </summary>
+        public bool mPassesThroughEnemies = false;
         
         /// <summary>
         /// Baker class that converts MonoBehaviour data to ECS components.
@@ -56,15 +78,22 @@ namespace Roguelike.DOTS
                 AddComponent(lEntity, new EnemySpeedComponent
                 {
                     mValue = pAuthoring.mMoveSpeed,              // Transfer editor-configured speed value
-                    mSmoothedSeparation = float3.zero            // Initialize separation vector
+                    mSmoothedSeparation = float3.zero,           // Initialize separation vector
+                    mPassesThroughEnemies = pAuthoring.mPassesThroughEnemies
                 });
 
                 // Add the damage component for collision handling
                 // The movement system reads this value when an enemy contacts the player
                 AddComponent(lEntity, new EnemyDamageComponent
                 {
-                    mValue = pAuthoring.mDamage                  // Transfer editor-configured damage value
+                    mValue = pAuthoring.mDamage,                 // Transfer editor-configured damage value
+                    mSurvivesContact = pAuthoring.mSurvivesContact
                 });
+
+                if (pAuthoring.mIsBoss)
+                {
+                    AddComponent(lEntity, new EnemyBossTag { mMaxHealth = pAuthoring.mMaxHealth });
+                }
 
                 AddComponent(lEntity, new EnemyHealthComponent
                 {
@@ -73,7 +102,8 @@ namespace Roguelike.DOTS
 
                 AddComponent(lEntity, new EnemyRewardComponent
                 {
-                    mExperience = pAuthoring.mExperience
+                    mExperience = pAuthoring.mExperience,
+                    mPickupDropChance = pAuthoring.mPickupDropChance
                 });
 
                 // Hit feedback: red flash and knockback, both at rest
@@ -109,6 +139,11 @@ namespace Roguelike.DOTS
         /// Uses exponential smoothing to create natural movement curves.
         /// </summary>
         public float3 mSmoothedSeparation;
+
+        /// <summary>
+        /// When true, the enemy ignores the separation from its neighbors and walks through the horde (boss).
+        /// </summary>
+        public bool mPassesThroughEnemies;
     }
 
     /// <summary>
@@ -123,6 +158,19 @@ namespace Roguelike.DOTS
         /// Applied when the enemy collides with the player entity.
         /// </summary>
         public int mValue;
+
+        /// <summary>
+        /// When true, touching the player does not kill the enemy (boss).
+        /// </summary>
+        public bool mSurvivesContact;
+    }
+
+    /// <summary>
+    /// Marks the final boss. Its maximum health is kept to display its health bar.
+    /// </summary>
+    public struct EnemyBossTag : IComponentData
+    {
+        public float mMaxHealth;
     }
 
     /// <summary>
@@ -139,6 +187,11 @@ namespace Roguelike.DOTS
     public struct EnemyRewardComponent : IComponentData
     {
         public float mExperience;
+
+        /// <summary>
+        /// Chance (0 to 1) of dropping a random pickup when killed by a weapon.
+        /// </summary>
+        public float mPickupDropChance;
     }
 
     /// <summary>

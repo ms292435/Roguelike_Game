@@ -427,6 +427,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 88806a3590fb96745a71aa08911c6fe2, type: 2}
   - {fileID: 11400000, guid: 4f5dfedc346a43048e836b4b34358c5d, type: 2}
   - {fileID: 11400000, guid: d0335ae038a94ccdb4ebd04b1305304a, type: 2}
+  - {fileID: 11400000, guid: d8da9938d3b9435bb2ded9cf0db3fa0f, type: 2}
   mUpgradeButtonPrefab: {fileID: 1923562580425098957, guid: 8ce6ff5f6aeb58c44b080988fdca5208, type: 3}
   mLevelUpPanel: {fileID: 1832024279}
   mUpgradeUIContainer: {fileID: 1408144965}
@@ -752,6 +753,8 @@ MonoBehaviour:
   mGameOverPanel: {fileID: 1543639308}
   mResultTitleText: {fileID: 0}
   mScoreText: {fileID: 1794164097}
+  mVictoryBackgroundColor: {r: 0.06, g: 0.1, b: 0.28, a: 0.92}
+  mVictoryTitleColor: {r: 1, g: 0.82, b: 0.3, a: 1}
 --- !u!4 &278117587
 Transform:
   m_ObjectHideFlags: 0
@@ -1028,6 +1031,7 @@ MonoBehaviour:
   mTilePrefab: {fileID: 5105388326979754159, guid: 7ad97899c4f7b67498c37a7aa37d8f8b, type: 3}
   mTileSize: 100
   mViewDistance: 2
+  mGroundDepth: 1
 --- !u!1 &509734965
 GameObject:
   m_ObjectHideFlags: 0
@@ -1698,12 +1702,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mExperienceBar: {fileID: 654817035}
   mWeaponSlot: {fileID: 716711902}
-  mAttractRadius: 10
+  mAttractRadius: 3
   mCollectRadius: 0.5
   mStartHealth: 100
   mStartMaxXP: 10
   mInvulnerabilityDuration: 0.5
   mMaxDamagePerHit: 15
+  mXPGrowthFactor: 1.1
+  mXPGrowthFlat: 2
+  mMaxSpeedMultiplier: 1.5
   mCurrentPosition: {x: 0, y: 0, z: 0}
 --- !u!4 &696027932
 Transform:
@@ -2472,7 +2479,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 216.6001}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &859918995
 MonoBehaviour:
@@ -2487,7 +2494,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_HorizontalFit: 2
-  m_VerticalFit: 0
+  m_VerticalFit: 2
 --- !u!114 &859918996
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2497,7 +2504,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 859918993}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30649d3a9faa99c48a7b1166b86bf2a0, type: 3}
+  m_Script: {fileID: 11500000, guid: 59f8146938fff824cb5fd77236b75775, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   m_Padding:
@@ -2505,8 +2512,8 @@ MonoBehaviour:
     m_Right: 0
     m_Top: 100
     m_Bottom: 0
-  m_ChildAlignment: 4
-  m_Spacing: 0
+  m_ChildAlignment: 1
+  m_Spacing: 25
   m_ChildForceExpandWidth: 1
   m_ChildForceExpandHeight: 1
   m_ChildControlWidth: 0
@@ -2973,6 +2980,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a31410381715e984eadb86e990c230f9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Roguelike.WaveDirector
+  mDebugSpawnEverythingAtStart: 0
   mRunDuration: 300
   mTargetEnemies:
     serializedVersion: 2
@@ -3169,6 +3177,73 @@ MonoBehaviour:
     - serializedVersion: 3
       time: 300
       value: 5
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  mRunnerStartTime: 30
+  mRunnerPackInterval:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 30
+      value: 18
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 150
+      value: 10
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 300
+      value: 5
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  mRunnerPackSize:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 30
+      value: 4
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 150
+      value: 8
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 300
+      value: 14
       inSlope: 0
       outSlope: 0
       tangentMode: 0
@@ -4346,6 +4421,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mWeaponIconPrefab: {fileID: 3631131795678177533, guid: def05e5a142d935488b138cb8bbf5796, type: 3}
   mWeaponUIContainer: {fileID: 859918994}
+  mPipSize: 14
+  mPipSpacing: 4
+  mPipEmptyColor: {r: 0, g: 0, b: 0, a: 0.55}
+  mPipFilledColor: {r: 1, g: 1, b: 1, a: 0.95}
+  mPipMasteredColor: {r: 1, g: 0.82, b: 0.3, a: 1}
+  mStatColumnGap: 40
 --- !u!4 &1900328017
 Transform:
   m_ObjectHideFlags: 0

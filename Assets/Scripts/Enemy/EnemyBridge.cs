@@ -18,6 +18,11 @@ namespace Roguelike.DOTS
         private const float KnockbackSpeed = 5f;
 
         /// <summary>
+        /// Radius of a regular enemy (scale 1).
+        /// </summary>
+        private const float RegularEnemyRadius = 0.5f;
+
+        /// <summary>
         /// Damages all enemies within an area of effect. Each hit enemy flashes red and is pushed away from the
         /// center of the impact. Enemies whose health drops to zero are flagged with their EnemyDeadTag: the
         /// EnemyDeathSystem destroys them and drops their experience orbs at the start of the simulation.
@@ -31,9 +36,8 @@ namespace Roguelike.DOTS
             if (!TryGetGrid(out EnemySpatialGrid lGrid, out EntityManager lEntityManager)) return 0;
 
             float3 lPos = new float3(pPosition.x, pPosition.y, 0f);
-            float lSqrRadius = pRadius * pRadius;
             int2 lCenterCell = EnemySpatialGrid.GetCell(lPos, EnemyHashSystem.CellSize);
-            int lCellRange = math.max(1, (int)math.ceil(pRadius / EnemyHashSystem.CellSize));
+            int lCellRange = GetCellRange(pRadius);
             int lHitCount = 0;
 
             for (int x = -lCellRange; x <= lCellRange; x++)
@@ -53,7 +57,9 @@ namespace Roguelike.DOTS
                         float3 lEnemyPos = lData.mPosition;
                         lEnemyPos.z = 0f;
 
-                        if (math.lengthsq(lEnemyPos - lPos) <= lSqrRadius)
+                        // Hit when the impact reaches the edge of the enemy, not only its center
+                        float lReach = pRadius + lData.mRadius;
+                        if (math.lengthsq(lEnemyPos - lPos) <= lReach * lReach)
                         {
                             // Skip enemies already destroyed or already dead this frame
                             if (lEntityManager.Exists(lData.mEntity)
@@ -205,9 +211,8 @@ namespace Roguelike.DOTS
             if (!TryGetGrid(out EnemySpatialGrid lGrid, out _)) return false;
 
             float3 lPos = new float3(pPosition.x, pPosition.y, 0f);
-            float lSqrRadius = pRadius * pRadius;
             int2 lCenterCell = EnemySpatialGrid.GetCell(lPos, EnemyHashSystem.CellSize);
-            int lCellRange = math.max(1, (int)math.ceil(pRadius / EnemyHashSystem.CellSize));
+            int lCellRange = GetCellRange(pRadius);
 
             for (int x = -lCellRange; x <= lCellRange; x++)
             {
@@ -226,7 +231,9 @@ namespace Roguelike.DOTS
                         float3 lEnemyPos = lData.mPosition;
                         lEnemyPos.z = 0f;
 
-                        if (math.lengthsq(lEnemyPos - lPos) <= lSqrRadius)
+                        // Hit when the impact reaches the edge of the enemy, not only its center
+                        float lReach = pRadius + lData.mRadius;
+                        if (math.lengthsq(lEnemyPos - lPos) <= lReach * lReach)
                         {
                             return true;
                         }
@@ -235,6 +242,18 @@ namespace Roguelike.DOTS
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Number of grid cells to scan around an impact so that every enemy whose edge can be reached is found:
+        /// the impact radius plus the radius of the biggest enemy alive (the boss during the boss fight).
+        /// </summary>
+        /// <param name="pRadius">Radius of the impact.</param>
+        /// <returns>Number of cells to scan in each direction around the center cell.</returns>
+        private static int GetCellRange(float pRadius)
+        {
+            float lBiggestEnemyRadius = BossStatus.IsAlive ? math.max(BossStatus.Radius, RegularEnemyRadius) : RegularEnemyRadius;
+            return math.max(1, (int)math.ceil((pRadius + lBiggestEnemyRadius) / EnemyHashSystem.CellSize));
         }
 
         /// <summary>

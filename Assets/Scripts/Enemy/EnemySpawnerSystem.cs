@@ -49,6 +49,13 @@ namespace Roguelike.DOTS
         private BatchMeshID mRunnerMeshID;
         private BatchMaterialID mRunnerMaterialID;
         private bool mHasRunner;
+
+        /// <summary>
+        /// Cached batch mesh and material IDs of the boss prefab, when the spawner has one.
+        /// </summary>
+        private BatchMeshID mBossMeshID;
+        private BatchMaterialID mBossMaterialID;
+        private bool mHasBoss;
         private bool mInitialized;
         private EntityQuery mEnemyQuery;
         /// <summary>
@@ -127,8 +134,9 @@ namespace Roguelike.DOTS
                 return;
             }
 
-            // Exit early if target enemy count is already satisfied
-            if (lCurrentEnemyCount >= lTargetEnemyCount) return;
+            // Benchmark: nothing to do once the horde is full.
+            // Game: the boss, elites and runner packs may still spawn when the horde is full
+            if (lIsBenchmark && lCurrentEnemyCount >= lTargetEnemyCount) return;
 
             // --- Camera Initialization Check ---
             // Ensure main camera exists before proceeding with spawn logic
@@ -152,6 +160,11 @@ namespace Roguelike.DOTS
                         out mEliteMeshID, out mEliteMaterialID);
                     mHasRunner = TryRegisterRendering(ref pState, lSpawnerData.ValueRO.mRunnerPrefab,
                         out mRunnerMeshID, out mRunnerMaterialID);
+                    mHasBoss = TryRegisterRendering(ref pState, lSpawnerData.ValueRO.mBossPrefab,
+                        out mBossMeshID, out mBossMaterialID);
+
+                    // Without a boss, surviving the run wins the game
+                    WaveDirector.HasBossPrefab = mHasBoss;
                     mInitialized = true;
                 }
 
@@ -184,6 +197,7 @@ namespace Roguelike.DOTS
                 Entity lPrefab = lSpawnerData.ValueRO.mPrefab;
                 Entity lElitePrefab = lSpawnerData.ValueRO.mElitePrefab;
                 Entity lRunnerPrefab = lSpawnerData.ValueRO.mRunnerPrefab;
+                Entity lBossPrefab = lSpawnerData.ValueRO.mBossPrefab;
                 if (lPrefab == Entity.Null)
                 {
                     Debug.LogError("Spawner: Enemy Prefab is missing or corrupted!");
@@ -194,9 +208,22 @@ namespace Roguelike.DOTS
                 lSpawnerData.ValueRW.mGameTimer += lDeltaTime;
                 var lRandom = lSpawnerData.ValueRO.mRandom;
 
+                // --- Final boss (game mode only) ---
+                // Spawned once when the run ends, even if the horde is full; its health is not scaled
+                if (!lIsBenchmark && mHasBoss && WaveDirector.ConsumeBossSpawn())
+                {
+                    float3 lBossPosition = GetSpawnEdgePosition(ref lRandom, lCamPos, lWidth, lHeight, lMargin);
+                    SpawnGroup(ref pState, ref lRandom, lBossPrefab, 1, lBossPosition, 0f,
+                        mBossMeshID, mBossMaterialID, 1f);
+                }
+
                 // Calculate how many enemies can be spawned (respects target horde cap up to 1M)
                 int lRemaining = lTargetEnemyCount - lCurrentEnemyCount;
-                if (lRemaining <= 0) continue;
+                if (lRemaining <= 0)
+                {
+                    lSpawnerData.ValueRW.mRandom = lRandom;
+                    continue;
+                }
 
                 // --- Elites (game mode only) ---
                 // Spawned one by one, each on its own screen edge, at the rate set by the WaveDirector

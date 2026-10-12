@@ -25,6 +25,16 @@ namespace Roguelike
         [Tooltip("Maximum damage taken in a single hit, however many enemies touch the player in the same frame.")]
         public float mMaxDamagePerHit = 15f;
 
+        [Header("Progression")]
+        [Tooltip("Each level requires the previous requirement times this factor...")]
+        public float mXPGrowthFactor = 1.1f;
+
+        [Tooltip("...plus this flat amount, which slows down the mid-game levels.")]
+        public float mXPGrowthFlat = 2f;
+
+        [Tooltip("Maximum movement speed, as a multiple of the base speed, reachable with Speed Up boosts.")]
+        public float mMaxSpeedMultiplier = 1.5f;
+
         public float CurrentXP { get; private set; }
         public float MaxXP { get; private set; }
         public float MaxHealth { get; private set; }
@@ -37,6 +47,17 @@ namespace Roguelike
         private readonly List<IObserver> mObservers = new();
         private bool mIsDead = false;
         private float mInvulnerableUntil;
+
+        // Base stats: stat boosts add a fraction of these, so that bonuses stack additively instead of compounding
+        private const float BaseDamage = 1f;
+        private const float BaseSpeed = 4f;
+        private float mBaseAttractRadius;
+
+        // Mastery bonuses, granted once when a stat boost reaches its maximum level
+        private const float HealthMasteryBonus = 50f;          // Flat maximum health, plus a full heal
+        private const float DamageMasteryBonus = 0.25f;        // Fraction of the base damage
+        private const float SpeedMasteryBonus = 0.1f;          // Fraction of the base speed (reaches the speed cap)
+        private const float PickupMasteryBonus = 0.5f;         // Fraction of the base pickup range
 
         /// <summary>
         /// Registers an observer to receive player notifications.
@@ -127,14 +148,93 @@ namespace Roguelike
         }
 
         /// <summary>
-        /// Increases the maximum health by a multiplier, and heals the player by the amount gained.
+        /// Restores health, without exceeding the maximum health.
         /// </summary>
-        /// <param name="pMultiplier">Multiplier applied to the maximum health.</param>
-        public void BoostMaxHealth(float pMultiplier)
+        /// <param name="pAmount">Health restored.</param>
+        public void Heal(float pAmount)
         {
-            float lGained = MaxHealth * (pMultiplier - 1f);
-            MaxHealth += lGained;
-            Health = Mathf.Min(Health + lGained, MaxHealth);
+            if (mIsDead) return;
+            Health = Mathf.Min(Health + pAmount, MaxHealth);
+        }
+
+        /// <summary>
+        /// Applies a stat boost chosen on level up. Each boost adds a fraction of the base stat, so that boosts stack
+        /// additively: five +10% damage boosts give +50%, instead of +61% if they multiplied each other.
+        /// </summary>
+        /// <param name="pStat">Boosted stat: "Health", "Damage" or "Speed".</param>
+        /// <param name="pBonus">Fraction of the base stat added, e.g. 0.1 for +10%.</param>
+        public void ApplyStatBoost(string pStat, float pBonus)
+        {
+            switch (pStat)
+            {
+                case "Health":
+                    // Raises the maximum health, and heals the player by the amount gained
+                    float lGained = mStartHealth * pBonus;
+                    MaxHealth += lGained;
+                    Health = Mathf.Min(Health + lGained, MaxHealth);
+                    break;
+                case "Damage":
+                    Damage += BaseDamage * pBonus;
+                    break;
+                case "Speed":
+                    Speed = Mathf.Min(Speed + BaseSpeed * pBonus, BaseSpeed * mMaxSpeedMultiplier);
+                    break;
+                case "Pickup":
+                    // Range at which experience orbs start flying to the player
+                    mAttractRadius += mBaseAttractRadius * pBonus;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Applies the mastery bonus of a stat, granted once when its boost reaches the maximum level.
+        /// </summary>
+        /// <param name="pStat">Mastered stat: "Health", "Damage", "Speed" or "Pickup".</param>
+        public void ApplyStatMastery(string pStat)
+        {
+            switch (pStat)
+            {
+                case "Health":
+                    MaxHealth += HealthMasteryBonus;
+                    Health = MaxHealth;
+                    break;
+                case "Damage":
+                    Damage += BaseDamage * DamageMasteryBonus;
+                    break;
+                case "Speed":
+                    Speed = Mathf.Min(Speed + BaseSpeed * SpeedMasteryBonus, BaseSpeed * mMaxSpeedMultiplier);
+                    break;
+                case "Pickup":
+                    mAttractRadius += mBaseAttractRadius * PickupMasteryBonus;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Describes the mastery bonus of a stat, shown on the level-up card of its last boost.
+        /// </summary>
+        /// <param name="pStat">Stat: "Health", "Damage", "Speed" or "Pickup".</param>
+        /// <returns>Short description of the bonus.</returns>
+        public static string GetStatMasteryDescription(string pStat)
+        {
+            return pStat switch
+            {
+                "Health" => $"+{HealthMasteryBonus:0} Max Health & full heal",
+                "Damage" => $"+{DamageMasteryBonus * 100f:0}% Damage",
+                "Speed" => $"+{SpeedMasteryBonus * 100f:0}% Speed",
+                "Pickup" => $"+{PickupMasteryBonus * 100f:0}% Pickup Range",
+                _ => "big bonus",
+            };
+        }
+
+        /// <summary>
+        /// Tells whether a stat can still be boosted, so that maxed-out boosts are no longer offered on level up.
+        /// </summary>
+        /// <param name="pStat">Stat to check: "Health", "Damage" or "Speed".</param>
+        /// <returns>False when the stat has reached its cap.</returns>
+        public bool CanBoostStat(string pStat)
+        {
+            return pStat != "Speed" || Speed < BaseSpeed * mMaxSpeedMultiplier - 0.001f;
         }
 
         /// <summary>
@@ -154,7 +254,7 @@ namespace Roguelike
             while (CurrentXP >= MaxXP)
             {
                 CurrentXP -= MaxXP;
-                MaxXP = Mathf.Round(MaxXP * 1.1f); 
+                MaxXP = Mathf.Round(MaxXP * mXPGrowthFactor + mXPGrowthFlat);
                 Notify("LevelUp"); 
             }
             Notify("Experience"); 
@@ -170,10 +270,11 @@ namespace Roguelike
             Instance = this;
 
             mIsDead = false;
+            mBaseAttractRadius = mAttractRadius;
             MaxHealth = mStartHealth;
             Health = MaxHealth;
             Damage = 1f;   // Multiplier applied to every weapon's damage, raised by the Damage Up boost
-            Speed = 4f;
+            Speed = BaseSpeed;
             MaxXP = mStartMaxXP;
             CurrentXP = 0f;
         }

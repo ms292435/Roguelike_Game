@@ -31,8 +31,12 @@ namespace Roguelike
                  "camera so that it is drawn under them.")]
         public string mSortingLayer = "Default";
 
-        [Tooltip("Depth offset placing the aura behind the enemies, which are at z = 0.")]
-        public float mDepthOffset = 0.1f;
+        [Tooltip("Depth offset placing the aura behind the enemies, which are between z = 0.05 (boss) and 0.51.")]
+        public float mDepthOffset = 0.6f;
+
+        [Tooltip("Render queue of the aura: after the ground (2000), before the enemies and orbs (2450 and more), so that " +
+                 "they are always drawn over it, whatever the depth testing of the sprite shader.")]
+        public int mRenderQueue = 2001;
 
         public int WeaponLevel { get; set; }
         public WeaponUpgradeData Data => mData;
@@ -101,16 +105,16 @@ namespace Roguelike
             switch (Random.Range(0, 3))
             {
                 case 0:
-                    lProposal.Description = "Damage +25%";
-                    lProposal.ApplyAction = () => { mDamage *= 1.25f; WeaponLevel++; };
+                    lProposal.Description = "Damage +15%";
+                    lProposal.ApplyAction = () => { mDamage *= 1.15f; WeaponLevel++; };
                     break;
                 case 1:
-                    lProposal.Description = "Radius +15%";
-                    lProposal.ApplyAction = () => { mRadius *= 1.15f; WeaponLevel++; };
+                    lProposal.Description = "Radius +10%";
+                    lProposal.ApplyAction = () => { mRadius *= 1.1f; WeaponLevel++; };
                     break;
                 case 2:
-                    lProposal.Description = "Tick rate +12%";
-                    lProposal.ApplyAction = () => { mTickInterval *= 0.88f; WeaponLevel++; };
+                    lProposal.Description = "Tick rate +8%";
+                    lProposal.ApplyAction = () => { mTickInterval *= 0.92f; WeaponLevel++; };
                     break;
             }
             return lProposal;
@@ -126,9 +130,20 @@ namespace Roguelike
             mVisual.sprite = mSprite;
             mVisual.color = mColor;
 
-            // Drawn above the ground (Ground layer), below the enemies (depth offset) and the player (Entities layer)
+            // Drawn above the ground and below the enemies (render queue), and below the player (Entities layer)
             mVisual.sortingLayerName = mSortingLayer;
             mVisual.sortingOrder = 0;
+            mVisual.material.renderQueue = mRenderQueue;
+        }
+
+        /// <summary>
+        /// Mastery bonus applied once at the maximum level: boosts every stat of the weapon.
+        /// </summary>
+        public void ApplyMastery()
+        {
+            mDamage *= 1.5f;
+            mRadius *= 1.25f;
+            mTickInterval *= 0.8f;
         }
     }
 }

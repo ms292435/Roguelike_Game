@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 namespace Roguelike
 {
@@ -30,6 +31,11 @@ namespace Roguelike
         public static bool IsBenchmarkMode { get; private set; }
 
         /// <summary>
+        /// True while a session is being played: false on the main menu and on the end screen.
+        /// </summary>
+        public bool IsInSession { get; private set; }
+
+        /// <summary>
         /// Number of enemies killed by the player's weapons during the current run.
         /// </summary>
         public int Score { get; set; } = 0;
@@ -37,6 +43,15 @@ namespace Roguelike
         public TextMeshProUGUI mScoreText;
 
         private static bool mSkipMainMenu = false;
+
+        [Header("Victory Screen")]
+        [SerializeField] private Color mVictoryBackgroundColor = new(0.06f, 0.1f, 0.28f, 0.92f);
+        [SerializeField] private Color mVictoryTitleColor = new(1f, 0.82f, 0.3f, 1f);
+
+        // Colors of the end panel as set in the scene, used for the defeat
+        private Image mResultBackground;
+        private Color mDefeatBackgroundColor;
+        private Color mDefeatTitleColor;
         private const float BenchmarkCameraSize = 30f;
 
         /// <summary>
@@ -44,7 +59,7 @@ namespace Roguelike
         /// </summary>
         public void DisplayGameOver()
         {
-            DisplayResult("GAME OVER");
+            DisplayResult("GAME OVER", mDefeatBackgroundColor, mDefeatTitleColor);
         }
 
         /// <summary>
@@ -52,7 +67,7 @@ namespace Roguelike
         /// </summary>
         public void DisplayVictory()
         {
-            DisplayResult("YOU SURVIVED!");
+            DisplayResult("VICTORY!", mVictoryBackgroundColor, mVictoryTitleColor);
         }
 
         /// <summary>
@@ -74,6 +89,38 @@ namespace Roguelike
         /// <summary>
         /// Restarts the active scene and bypasses the main menu directly into the same mode.
         /// </summary>
+        /// <summary>
+        /// Restarts the scene directly into a session of the given mode (pause menu).
+        /// </summary>
+        /// <param name="pBenchmark">True to restart in Benchmark mode, false in Game mode.</param>
+        public void RestartInMode(bool pBenchmark)
+        {
+            IsBenchmarkMode = pBenchmark;
+            ReplayGame();
+        }
+
+        /// <summary>
+        /// Reloads the scene and shows the main menu (pause menu).
+        /// </summary>
+        public void ReturnToMainMenu()
+        {
+            mSkipMainMenu = false;
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
+
+        /// <summary>
+        /// Quits the application, or stops the Play mode in the Editor.
+        /// </summary>
+        public void QuitGame()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+
         public static void ReplayGame()
         {
             mSkipMainMenu = true;
@@ -88,6 +135,7 @@ namespace Roguelike
         private void StartSession(bool pBenchmark)
         {
             IsBenchmarkMode = pBenchmark;
+            IsInSession = true;
             Score = 0;
 
             if (mMainMenuPanel != null) mMainMenuPanel.SetActive(false);
@@ -117,12 +165,20 @@ namespace Roguelike
         /// Shows the end panel with a title and the final score, and pauses the game.
         /// </summary>
         /// <param name="pTitle">Title displayed at the top of the end panel.</param>
-        private void DisplayResult(string pTitle)
+        /// <param name="pBackgroundColor">Color of the end panel background.</param>
+        /// <param name="pTitleColor">Color of the title.</param>
+        private void DisplayResult(string pTitle, Color pBackgroundColor, Color pTitleColor)
         {
             WaveDirector.StopRun();
+            IsInSession = false;
 
             if (mGameOverPanel != null) mGameOverPanel.SetActive(true);
-            if (mResultTitleText != null) mResultTitleText.text = pTitle;
+            if (mResultBackground != null) mResultBackground.color = pBackgroundColor;
+            if (mResultTitleText != null)
+            {
+                mResultTitleText.text = pTitle;
+                mResultTitleText.color = pTitleColor;
+            }
 
             if (mScoreText != null)
                 mScoreText.text = $"Score: {Score}";
@@ -136,6 +192,7 @@ namespace Roguelike
         /// </summary>
         private void ShowMainMenu()
         {
+            IsInSession = false;
             if (mMainMenuPanel != null) mMainMenuPanel.SetActive(true);
             if (mGameOverPanel != null) mGameOverPanel.SetActive(false);
 
@@ -163,10 +220,19 @@ namespace Roguelike
                 }
             }
 
+            if (mGameOverPanel != null)
+            {
+                mResultBackground = mGameOverPanel.GetComponent<Image>();
+                if (mResultBackground != null) mDefeatBackgroundColor = mResultBackground.color;
+            }
+            if (mResultTitleText != null) mDefeatTitleColor = mResultTitleText.color;
+
             if (!mSkipMainMenu)
             {
                 ShowMainMenu();
             }
+
+            PauseMenu.EnsureExists();
         }
 
         private void Start()

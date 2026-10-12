@@ -27,6 +27,6 @@ namespace Roguelike
         /// <summary>
         /// Maximum upgrade level achievable for this weapon before it is excluded from level-up choices.
         /// </summary>
-        public int MaxLevel = 10;
+        public int MaxLevel = 7;
     }
 }

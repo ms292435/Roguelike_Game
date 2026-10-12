@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Name: Health Up
   Icon: {fileID: -449346819, guid: cea5c615bee92c249a08d243b161cef7, type: 3}
-  Description: +25% Health
-  multiplier: 1.25
+  Description: +20 Max Health
+  multiplier: 1.2
   type: Health

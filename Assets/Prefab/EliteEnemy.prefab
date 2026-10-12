@@ -50,6 +50,7 @@ MonoBehaviour:
   mDamage: 15
   mMaxHealth: 800
   mExperience: 15
+  mPickupDropChance: 0.2
 --- !u!33 &2581546007250333583
 MeshFilter:
   m_ObjectHideFlags: 0

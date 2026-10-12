@@ -46,5 +46,10 @@ namespace Roguelike
         /// </summary>
         /// <returns>A proposal containing an effect description and application callback.</returns>
         WeaponUpgradeProposal GetNextUpgradeProposal();
+
+        /// <summary>
+        /// Boosts every stat of the weapon at once. Applied when the weapon reaches its maximum level.
+        /// </summary>
+        void ApplyMastery();
     }
 }

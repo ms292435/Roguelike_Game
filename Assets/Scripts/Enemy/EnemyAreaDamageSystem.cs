@@ -100,15 +100,20 @@ namespace Roguelike.DOTS
 
                 float2 lPosition = pTransform.Position.xy;
 
+                // Areas hit the edge of the enemy, not only its center (matters for the boss)
+                float lEnemyRadius = 0.5f * pTransform.Scale;
+
                 for (int i = 0; i < mRequests.Length; i++)
                 {
                     AreaDamageRequest lRequest = mRequests[i];
                     float2 lFromCenter = lPosition - lRequest.mCenter;
                     float lSqrDistance = math.lengthsq(lFromCenter);
+                    float lDistance = math.sqrt(lSqrDistance);
 
-                    bool lInside = lSqrDistance <= lRequest.mOuterRadius * lRequest.mOuterRadius
-                                   && (lRequest.mInnerRadius <= 0f
-                                       || lSqrDistance > lRequest.mInnerRadius * lRequest.mInnerRadius);
+                    // The enemy overlaps the ring: its near edge is inside the outer radius, its far edge outside the
+                    // inner radius
+                    bool lInside = lDistance - lEnemyRadius <= lRequest.mOuterRadius
+                                   && (lRequest.mInnerRadius <= 0f || lDistance + lEnemyRadius > lRequest.mInnerRadius);
                     if (!lInside) continue;
 
                     // A wave hits each enemy only once
@@ -132,7 +137,7 @@ namespace Roguelike.DOTS
                     if (lRequest.mPushToRadius > 0f)
                     {
                         // Speed needed to travel the remaining distance to the target radius
-                        float lRemainingDistance = lRequest.mPushToRadius - math.sqrt(lSqrDistance);
+                        float lRemainingDistance = lRequest.mPushToRadius - lDistance;
                         lPushSpeed = math.max(lPushSpeed, lRemainingDistance * EnemyKnockback.DampingRate);
                     }
 

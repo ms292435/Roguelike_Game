@@ -51,4 +51,4 @@ MonoBehaviour:
   mSprite: {fileID: 21300000, guid: 90b1e383be8f44378d45064b5f47e26e, type: 3}
   mColor: {r: 1, g: 1, b: 1, a: 1}
   mSortingLayer: Default
-  mDepthOffset: 0.1
+  mDepthOffset: 0.6

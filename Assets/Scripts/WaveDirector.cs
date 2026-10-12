@@ -3,7 +3,8 @@ using UnityEngine;
 namespace Roguelike
 {
     /// <summary>
-    /// Drives the horde during a regular game: a 5-minute survival run whose difficulty grows over time.
+    /// Drives the horde during a regular game: a 5-minute survival run whose difficulty grows over time, ending with
+    /// a final boss whose death wins the game.
     /// Two curves, indexed by the elapsed time in seconds, define the maximum horde size and the spawn rate.
     /// The EnemySpawnerSystem reads the target and consumes the spawn budget accumulated here.
     /// The camera starts close to the player and zooms out progressively as the horde grows.
@@ -12,6 +13,9 @@ namespace Roguelike
     /// </summary>
     public class WaveDirector : MonoBehaviour
     {
+        [Tooltip("Debug: spawns an elite, a runner pack and the boss as soon as the run starts. Disable before release.")]
+        public bool mDebugSpawnEverythingAtStart = false;
+
         [Tooltip("Duration of a run in seconds. Surviving until the end wins the game.")]
         public float mRunDuration = 300f;
 
@@ -84,6 +88,18 @@ namespace Roguelike
         private float mSpawnBudget;
         private float mEliteBudget;
         private float mRunnerBudget;
+        private bool mBossPhase;
+        private bool mBossSpawnPending;
+
+        /// <summary>
+        /// True when the spawner has a boss prefab. Set by the EnemySpawnerSystem.
+        /// </summary>
+        public static bool HasBossPrefab { get; set; }
+
+        /// <summary>
+        /// True once the run time is over and the final boss has been released.
+        /// </summary>
+        public static bool IsBossPhase => IsRunning && sInstance.mBossPhase;
 
         /// <summary>
         /// Time elapsed since the start of the run, in seconds. Paused with the game.
@@ -121,6 +137,18 @@ namespace Roguelike
             sInstance.mSpawnBudget = 0f;
             sInstance.mEliteBudget = 0f;
             sInstance.mRunnerBudget = 0f;
+            sInstance.mBossPhase = false;
+            sInstance.mBossSpawnPending = false;
+
+            if (sInstance.mDebugSpawnEverythingAtStart)
+            {
+                Debug.LogWarning("WaveDirector: debug spawn enabled, the elite, runners and boss appear immediately.");
+                sInstance.mEliteBudget = 1f;
+                sInstance.mRunnerBudget = 1f;
+                // The spawner only reports its boss prefab once the run has started: request the boss regardless
+                sInstance.mBossPhase = true;
+                sInstance.mBossSpawnPending = true;
+            }
             sInstance.mTargetEnemyCount = Mathf.RoundToInt(sInstance.mTargetEnemies.Evaluate(0f));
             sInstance.mRunning = true;
 
@@ -178,6 +206,18 @@ namespace Roguelike
             return Mathf.Min(lPackSize, pMaxCount);
         }
 
+        /// <summary>
+        /// Returns true once, when the final boss must be spawned.
+        /// </summary>
+        /// <returns>True if the spawner must spawn the boss this frame.</returns>
+        public static bool ConsumeBossSpawn()
+        {
+            if (!IsRunning || !sInstance.mBossSpawnPending) return false;
+
+            sInstance.mBossSpawnPending = false;
+            return true;
+        }
+
         private static void EnsureInstance()
         {
             if (sInstance != null) return;
@@ -223,9 +263,19 @@ namespace Roguelike
                 mRunnerBudget = Mathf.Min(mRunnerBudget + lDeltaTime / lPackInterval, 2f);
             }
 
-            if (ElapsedTime >= mRunDuration && GameManager.Instance != null)
+            // End of the run: release the final boss, whose death wins the game.
+            // Without a boss, surviving the run is enough
+            if (ElapsedTime >= mRunDuration && !mBossPhase)
             {
-                GameManager.Instance.DisplayVictory();
+                if (HasBossPrefab)
+                {
+                    mBossPhase = true;
+                    mBossSpawnPending = true;
+                }
+                else if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.DisplayVictory();
+                }
             }
         }
 

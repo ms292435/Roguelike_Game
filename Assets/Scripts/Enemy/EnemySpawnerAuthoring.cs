@@ -21,6 +21,11 @@ namespace Roguelike.DOTS
         /// Optional fast and fragile enemy spawned in packs during a regular game, at the rate set by the WaveDirector.
         /// </summary>
         public GameObject mRunnerPrefab;
+
+        /// <summary>
+        /// Optional final boss, spawned once at the end of the run. Without it, surviving the run wins the game.
+        /// </summary>
+        public GameObject mBossPrefab;
         public AnimationCurve mDifficultyCurve;
         
         /// <summary>
@@ -64,6 +69,11 @@ namespace Roguelike.DOTS
                     mRunnerPrefab = pAuthoring.mRunnerPrefab != null
                         ? GetEntity(pAuthoring.mRunnerPrefab, TransformUsageFlags.Dynamic)
                         : Entity.Null,
+
+                    // Optional boss prefab
+                    mBossPrefab = pAuthoring.mBossPrefab != null
+                        ? GetEntity(pAuthoring.mBossPrefab, TransformUsageFlags.Dynamic)
+                        : Entity.Null,
                     
                     // Transfer spawn interval settings from editor configuration
                     mBaseSpawnInterval = pAuthoring.mBaseSpawnInterval,
@@ -102,6 +112,7 @@ namespace Roguelike.DOTS
         public Unity.Entities.Entity mPrefab;
         public Unity.Entities.Entity mElitePrefab;
         public Unity.Entities.Entity mRunnerPrefab;
+        public Unity.Entities.Entity mBossPrefab;
         public float mBaseSpawnInterval;
         public int mBaseEnemiesPerWave;
         public float mTimer;

@@ -107,6 +107,23 @@ namespace Roguelike.DOTS
             /// Knockback speed above which an enemy completely stops chasing the player.
             /// </summary>
             private const float StaggerKnockbackSpeed = 1.5f;
+
+            /// <summary>
+            /// Speed at which an enemy surviving a contact with the player (boss) bounces back.
+            /// </summary>
+            private const float ContactBounceSpeed = 10f;
+
+            /// <summary>
+            /// Depth offset towards the camera per unit of scale above 1: the boss (scale 10) is drawn above the
+            /// elites (scale 2.5), which are drawn above the regular enemies (scale 1).
+            /// </summary>
+            private const float DepthPerScale = 0.05f;
+
+            /// <summary>
+            /// Depth of the regular enemies (scale 1), in front of the camera. Smaller depths are drawn on top:
+            /// boss 0.05, elites 0.425, regular enemies 0.5, runners 0.51.
+            /// </summary>
+            private const float BaseDepth = 0.5f;
             private const float HitFlashFadeSpeed = 8f;
 
             /// <summary>
@@ -121,8 +138,8 @@ namespace Roguelike.DOTS
             /// <param name="pHitFlash">Red flash intensity, faded out over time.</param>
             /// <param name="pKnockback">Knockback velocity, added to the movement and damped over time.</param>
             private void Execute(Entity pEntity, ref LocalTransform pTransform, ref EnemySpeedComponent pSpeed,
-                EnabledRefRW<EnemyDeadTag> pDead, EnabledRefRW<EnemyContactTag> pContact,
-                ref EnemyHitFlash pHitFlash, ref EnemyKnockback pKnockback)
+                in EnemyDamageComponent pDamage, EnabledRefRW<EnemyDeadTag> pDead,
+                EnabledRefRW<EnemyContactTag> pContact, ref EnemyHitFlash pHitFlash, ref EnemyKnockback pKnockback)
             {
                 // Already dead (e.g. hit by a weapon this frame): nothing left to simulate
                 if (pDead.ValueRO) return;
@@ -145,9 +162,18 @@ namespace Roguelike.DOTS
                 float lContactRadius = 0.5f + 0.5f * pTransform.Scale;
                 if (lSqrDistanceToPlayer < lContactRadius * lContactRadius)
                 {
-                    pDead.ValueRW = true;
                     pContact.ValueRW = true;
-                    return;
+
+                    if (!pDamage.mSurvivesContact)
+                    {
+                        // Regular enemies explode on contact
+                        pDead.ValueRW = true;
+                        return;
+                    }
+
+                    // The boss survives the contact and bounces back away from the player
+                    float3 lAwayFromPlayer = math.normalizesafe(lCurrentPosition - lPlayerPosition);
+                    pKnockback.mVelocity = lAwayFromPlayer * ContactBounceSpeed;
                 }
 
                 // --- Movement Calculation ---
@@ -156,7 +182,8 @@ namespace Roguelike.DOTS
 
                 // --- Separation: Staggered over frames to reduce grid lookup cost ---
                 // Only process separation every 4 frames, distributed by entity index
-                if ((pEntity.Index % 4) == (mJobFrameCount % 4))
+                // Enemies walking through the horde (boss) skip it: their separation stays at zero
+                if (!pSpeed.mPassesThroughEnemies && (pEntity.Index % 4) == (mJobFrameCount % 4))
                 {
                     // Calculate which grid cell the enemy occupies
                     int2 lGridPosition = new int2(
@@ -269,7 +296,10 @@ namespace Roguelike.DOTS
                 // The red flash fades out in about 0.12 seconds
                 pHitFlash.mValue = math.max(0f, pHitFlash.mValue - HitFlashFadeSpeed * mDeltaTime);
 
-                newPosition.z = 0f;
+                // Bigger enemies sit slightly closer to the camera. Enemies are opaque: the depth buffer draws the
+                // closest one on top, so the boss covers the horde and elites cover regular enemies.
+                // The camera is at z = 0 with its near clip plane at 0: every enemy must stay at z > 0 to be visible
+                newPosition.z = BaseDepth - DepthPerScale * (pTransform.Scale - 1f);
 
                 // --- Animation ---
                 // Calculate per-entity animation offset to prevent synchronized tilt across all enemies

@@ -1,5 +1,7 @@
+using Roguelike.DOTS;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Roguelike
 {
@@ -11,6 +13,26 @@ namespace Roguelike
     {
         private TextMeshProUGUI mTimerText;
         private TextMeshProUGUI mHealthText;
+        private GameObject mBossBar;
+        private RectTransform mBossBarFill;
+        private Image mFlash;
+
+        private const float FlashStartAlpha = 0.75f;
+        private const float FlashFadeSpeed = 2.5f;   // Alpha lost per second
+
+        private static GameHUD sInstance;
+
+        /// <summary>
+        /// Flashes the whole screen white, then fades it out (bomb pickup).
+        /// </summary>
+        public static void FlashScreen()
+        {
+            if (sInstance == null || sInstance.mFlash == null) return;
+
+            Color lColor = sInstance.mFlash.color;
+            lColor.a = FlashStartAlpha;
+            sInstance.mFlash.color = lColor;
+        }
 
         /// <summary>
         /// Creates the HUD on the scene's root Canvas if the scene does not have one yet.
@@ -55,17 +77,100 @@ namespace Roguelike
         {
             mTimerText = CreateText("Timer", new Vector2(0.5f, 1f), new Vector2(0f, -70f), 56, TextAlignmentOptions.Top);
             mHealthText = CreateText("Health", new Vector2(0f, 1f), new Vector2(30f, -70f), 40, TextAlignmentOptions.TopLeft);
+            CreateBossBar();
+            CreateFlash();
+            sInstance = this;
+        }
+
+        /// <summary>
+        /// Creates the full-screen white image used by FlashScreen, transparent at rest.
+        /// </summary>
+        private void CreateFlash()
+        {
+            var lFlashObject = new GameObject("Flash", typeof(RectTransform), typeof(Image));
+            var lRect = (RectTransform)lFlashObject.transform;
+            lRect.SetParent(transform, false);
+            lRect.anchorMin = Vector2.zero;
+            lRect.anchorMax = Vector2.one;
+            lRect.offsetMin = Vector2.zero;
+            lRect.offsetMax = Vector2.zero;
+
+            mFlash = lFlashObject.GetComponent<Image>();
+            mFlash.color = new Color(1f, 1f, 1f, 0f);
+            mFlash.raycastTarget = false;
+        }
+
+        private void OnDestroy()
+        {
+            if (sInstance == this) sInstance = null;
+        }
+
+        /// <summary>
+        /// Creates the boss health bar below the timer: a dark background and a red fill whose width follows the
+        /// boss health.
+        /// </summary>
+        private void CreateBossBar()
+        {
+            mBossBar = new GameObject("BossBar", typeof(RectTransform), typeof(Image));
+            var lBarRect = (RectTransform)mBossBar.transform;
+            lBarRect.SetParent(transform, false);
+            lBarRect.anchorMin = lBarRect.anchorMax = lBarRect.pivot = new Vector2(0.5f, 1f);
+            lBarRect.anchoredPosition = new Vector2(0f, -150f);
+            lBarRect.sizeDelta = new Vector2(800f, 28f);
+            var lBackground = mBossBar.GetComponent<Image>();
+            lBackground.color = new Color(0f, 0f, 0f, 0.6f);
+            lBackground.raycastTarget = false;
+
+            var lFill = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+            mBossBarFill = (RectTransform)lFill.transform;
+            mBossBarFill.SetParent(lBarRect, false);
+            mBossBarFill.anchorMin = Vector2.zero;
+            mBossBarFill.anchorMax = Vector2.one;
+            mBossBarFill.offsetMin = new Vector2(3f, 3f);
+            mBossBarFill.offsetMax = new Vector2(-3f, -3f);
+            var lFillImage = lFill.GetComponent<Image>();
+            lFillImage.color = new Color(0.85f, 0.18f, 0.15f, 1f);
+            lFillImage.raycastTarget = false;
+
+            mBossBar.SetActive(false);
         }
 
         private void Update()
         {
+            // Unscaled time: the flash fades out even if the game gets paused right after the bomb
+            if (mFlash.color.a > 0f)
+            {
+                Color lFlashColor = mFlash.color;
+                lFlashColor.a = Mathf.Max(0f, lFlashColor.a - FlashFadeSpeed * Time.unscaledDeltaTime);
+                mFlash.color = lFlashColor;
+            }
+
             bool lVisible = WaveDirector.IsRunning && !GameManager.IsBenchmarkMode;
             mTimerText.enabled = lVisible;
             mHealthText.enabled = lVisible;
-            if (!lVisible) return;
+            if (!lVisible)
+            {
+                mBossBar.SetActive(false);
+                return;
+            }
 
-            int lSeconds = Mathf.CeilToInt(WaveDirector.RemainingTime);
-            mTimerText.text = $"{lSeconds / 60:00}:{lSeconds % 60:00}";
+            if (WaveDirector.IsBossPhase)
+            {
+                mTimerText.text = "BOSS";
+            }
+            else
+            {
+                int lSeconds = Mathf.CeilToInt(WaveDirector.RemainingTime);
+                mTimerText.text = $"{lSeconds / 60:00}:{lSeconds % 60:00}";
+            }
+
+            bool lShowBossBar = BossStatus.IsAlive && BossStatus.MaxHealth > 0f;
+            mBossBar.SetActive(lShowBossBar);
+            if (lShowBossBar)
+            {
+                // The fill keeps its left edge and shrinks from the right
+                mBossBarFill.anchorMax = new Vector2(Mathf.Clamp01(BossStatus.Health / BossStatus.MaxHealth), 1f);
+            }
 
             if (Player.Instance != null)
             {

@@ -115,16 +115,16 @@ namespace Roguelike
             switch (lRandomChoice)
             {
                 case 0:
-                    lProposal.Description = "Damage +20%";
-                    lProposal.ApplyAction = () => { mDamage *= 1.2f; WeaponLevel++; };
+                    lProposal.Description = "Damage +15%";
+                    lProposal.ApplyAction = () => { mDamage *= 1.15f; WeaponLevel++; };
                     break;
                 case 1:
-                    lProposal.Description = "Range +15%";
+                    lProposal.Description = "Range +10%";
                     lProposal.ApplyAction = () =>
                     {
-                        mAttackRadius *= 1.15f;
-                        mVisualScaleMultiplier *= 1.15f;
-                        mAttackOffset *= 1.15f;
+                        mAttackRadius *= 1.1f;
+                        mVisualScaleMultiplier *= 1.1f;
+                        mAttackOffset *= 1.1f;
                         WeaponLevel++;
                     };
                     break;
@@ -134,6 +134,19 @@ namespace Roguelike
                     break;
             }
             return lProposal;
+        }
+
+        /// <summary>
+        /// Mastery bonus applied once at the maximum level: boosts every stat of the weapon.
+        /// </summary>
+        public void ApplyMastery()
+        {
+            mDamage *= 1.5f;
+            mAttackRadius *= 1.25f;
+            mVisualScaleMultiplier *= 1.25f;
+            mAttackOffset *= 1.25f;
+            mAttackCount++;
+            mAttackInterval *= 0.8f;
         }
     }
 }

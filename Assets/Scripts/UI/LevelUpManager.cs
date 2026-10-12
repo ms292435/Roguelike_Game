@@ -20,6 +20,11 @@ namespace Roguelike
 
         public static LevelUpManager Instance { get; private set; }
 
+        /// <summary>
+        /// True while the level-up choice is displayed (the game is paused).
+        /// </summary>
+        public bool IsChoosingUpgrade => mLevelUpPanel != null && mLevelUpPanel.activeSelf;
+
         private int mCurrentLevel = 1;
         private readonly Dictionary<UpgradeData, System.Action> mPendingActions = new();
 
@@ -46,8 +51,12 @@ namespace Roguelike
             if (mLevelText != null)
                 mLevelText.text = $"Level: {mCurrentLevel}";
 
-            Time.timeScale = 0f;
             List<UpgradeData> lSelectedChoices = GetRandomUpgrades(3);
+
+            // Every upgrade is maxed out: nothing to choose, so the game goes on without opening the panel
+            if (lSelectedChoices.Count == 0) return;
+
+            Time.timeScale = 0f;
             ShowUpgradeOptions(lSelectedChoices);
         }
 
@@ -79,8 +88,20 @@ namespace Roguelike
                     {
                         var lProposal = lExisting.GetNextUpgradeProposal();
                         lDisplayDescription = lProposal.Description;
+
+                        // The last upgrade of a weapon also unlocks its mastery bonus
+                        if (lExisting.WeaponLevel == lWeaponData.MaxLevel - 1)
+                        {
+                            lDisplayDescription += "\nMAX LEVEL: all stats boosted!";
+                        }
                         mPendingActions[lData] = lProposal.ApplyAction;
                     }
+                }
+                else if (lData is StatBoostData lStatData
+                         && WeaponManager.Instance.GetStatLevel(lStatData) == lStatData.MaxLevel - 1)
+                {
+                    // The last boost of a stat also unlocks its mastery bonus
+                    lDisplayDescription += "\nMAX LEVEL: " + Player.GetStatMasteryDescription(lStatData.type);
                 }
                 lUIElement.Setup(lData, this, lDisplayDescription);
             }
@@ -98,20 +119,27 @@ namespace Roguelike
             if (mPendingActions.ContainsKey(pData))
             {
                 mPendingActions[pData].Invoke();
+
+                // A weapon reaching its maximum level gets its mastery bonus, once
+                if (pData is WeaponUpgradeData lUpgradedWeapon)
+                {
+                    var lWeapon = WeaponManager.Instance.mEquippedWeapons.FirstOrDefault(w => w.Data == lUpgradedWeapon);
+                    if (lWeapon != null && lWeapon.WeaponLevel == lUpgradedWeapon.MaxLevel)
+                    {
+                        lWeapon.ApplyMastery();
+                    }
+
+                    WeaponManager.Instance.RefreshWeaponLevels();
+                }
             }
             else if (pData is StatBoostData lStatBoost)
             {
-                switch (lStatBoost.type)
+                Player.Instance.ApplyStatBoost(lStatBoost.type, lStatBoost.multiplier - 1f);
+
+                // A stat boost reaching its maximum level grants its mastery bonus, once
+                if (WeaponManager.Instance.AddStatLevel(lStatBoost))
                 {
-                    case "Health":
-                        Player.Instance.BoostMaxHealth(lStatBoost.multiplier);
-                        break;
-                    case "Damage":
-                        Player.Instance.Damage *= lStatBoost.multiplier;
-                        break;
-                    case "Speed":
-                        Player.Instance.Speed *= lStatBoost.multiplier;
-                        break;
+                    Player.Instance.ApplyStatMastery(lStatBoost.type);
                 }
             }
             else if (pData is WeaponUpgradeData lWeaponUpgrade)
@@ -139,6 +167,13 @@ namespace Roguelike
                             .FirstOrDefault(w => w.Data == lWeaponData);
 
                         return lEquipped == null || lEquipped.WeaponLevel < lWeaponData.MaxLevel;
+                    }
+
+                    // Stat boosts at their maximum level, or capped stats (speed), are no longer offered
+                    if (lUpgrade is StatBoostData lStatBoost)
+                    {
+                        return WeaponManager.Instance.GetStatLevel(lStatBoost) < lStatBoost.MaxLevel
+                               && Player.Instance.CanBoostStat(lStatBoost.type);
                     }
                     return true;
                 })
