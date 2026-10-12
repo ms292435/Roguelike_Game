@@ -79,6 +79,7 @@ namespace Roguelike.DOTS
                 // Hit feedback: red flash and knockback, both at rest
                 AddComponent(lEntity, new EnemyHitFlash { mValue = 0f });
                 AddComponent(lEntity, new EnemyKnockback { mVelocity = float3.zero });
+                AddComponent(lEntity, new EnemyWaveHit { mLastWaveId = 0 });
 
                 // Add the death and contact markers, disabled until the enemy dies or touches the player
                 AddComponent<EnemyDeadTag>(lEntity);
@@ -156,7 +157,34 @@ namespace Roguelike.DOTS
     /// </summary>
     public struct EnemyKnockback : IComponentData
     {
+        /// <summary>
+        /// Exponential damping rate of the knockback velocity, per second. An initial speed v moves the enemy
+        /// by v / DampingRate in total.
+        /// </summary>
+        public const float DampingRate = 10f;
+
         public float3 mVelocity;
+
+        /// <summary>
+        /// Returns the knockback to keep when an enemy is hit again: the strongest push wins, so that a weak push
+        /// (e.g. the Aura) never cancels a strong one (e.g. the Nova) hitting during the same frame.
+        /// </summary>
+        /// <param name="pCurrent">Current knockback velocity.</param>
+        /// <param name="pNew">Knockback velocity of the new hit.</param>
+        /// <returns>The velocity with the highest speed.</returns>
+        public static float3 Strongest(float3 pCurrent, float3 pNew)
+        {
+            return math.lengthsq(pNew) > math.lengthsq(pCurrent) ? pNew : pCurrent;
+        }
+    }
+
+    /// <summary>
+    /// Identifier of the last expanding wave (Nova) that hit the enemy, so that a wave hits each enemy only once,
+    /// even when its push carries the enemy ahead of the wave front.
+    /// </summary>
+    public struct EnemyWaveHit : IComponentData
+    {
+        public int mLastWaveId;
     }
 
     /// <summary>

@@ -16,6 +16,11 @@ namespace Roguelike.DOTS
         /// Optional tougher enemy spawned regularly during a regular game, at the rate set by the WaveDirector.
         /// </summary>
         public GameObject mElitePrefab;
+
+        /// <summary>
+        /// Optional fast and fragile enemy spawned in packs during a regular game, at the rate set by the WaveDirector.
+        /// </summary>
+        public GameObject mRunnerPrefab;
         public AnimationCurve mDifficultyCurve;
         
         /// <summary>
@@ -54,6 +59,11 @@ namespace Roguelike.DOTS
                     mElitePrefab = pAuthoring.mElitePrefab != null
                         ? GetEntity(pAuthoring.mElitePrefab, TransformUsageFlags.Dynamic)
                         : Entity.Null,
+
+                    // Optional runner prefab
+                    mRunnerPrefab = pAuthoring.mRunnerPrefab != null
+                        ? GetEntity(pAuthoring.mRunnerPrefab, TransformUsageFlags.Dynamic)
+                        : Entity.Null,
                     
                     // Transfer spawn interval settings from editor configuration
                     mBaseSpawnInterval = pAuthoring.mBaseSpawnInterval,
@@ -91,6 +101,7 @@ namespace Roguelike.DOTS
     {
         public Unity.Entities.Entity mPrefab;
         public Unity.Entities.Entity mElitePrefab;
+        public Unity.Entities.Entity mRunnerPrefab;
         public float mBaseSpawnInterval;
         public int mBaseEnemiesPerWave;
         public float mTimer;

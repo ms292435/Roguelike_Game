@@ -325,6 +325,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Roguelike.DOTS.EnemySpawnerAuthoring
   mEnemyPrefab: {fileID: 132872623360505547, guid: cc540824d722b9d46ba10d3acf8b7bf9, type: 3}
   mElitePrefab: {fileID: 132872623360505547, guid: de852d1a00f9444aabee63e8fad890fc, type: 3}
+  mRunnerPrefab: {fileID: 132872623360505547, guid: e6739109073140aeacd5f35b16edcd71, type: 3}
   mDifficultyCurve:
     serializedVersion: 2
     m_Curve:

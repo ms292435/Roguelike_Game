@@ -42,6 +42,13 @@ namespace Roguelike.DOTS
         private BatchMeshID mEliteMeshID;
         private BatchMaterialID mEliteMaterialID;
         private bool mHasElite;
+
+        /// <summary>
+        /// Cached batch mesh and material IDs of the runner prefab, when the spawner has one.
+        /// </summary>
+        private BatchMeshID mRunnerMeshID;
+        private BatchMaterialID mRunnerMaterialID;
+        private bool mHasRunner;
         private bool mInitialized;
         private EntityQuery mEnemyQuery;
         /// <summary>
@@ -140,9 +147,11 @@ namespace Roguelike.DOTS
                     if (!TryRegisterRendering(ref pState, lSpawnerData.ValueRO.mPrefab, out mMeshID, out mMaterialID))
                         continue;
 
-                    // The elite prefab is optional
+                    // The elite and runner prefabs are optional
                     mHasElite = TryRegisterRendering(ref pState, lSpawnerData.ValueRO.mElitePrefab,
                         out mEliteMeshID, out mEliteMaterialID);
+                    mHasRunner = TryRegisterRendering(ref pState, lSpawnerData.ValueRO.mRunnerPrefab,
+                        out mRunnerMeshID, out mRunnerMaterialID);
                     mInitialized = true;
                 }
 
@@ -174,6 +183,7 @@ namespace Roguelike.DOTS
                 // Ensure enemy prefab is valid before attempting instantiation
                 Entity lPrefab = lSpawnerData.ValueRO.mPrefab;
                 Entity lElitePrefab = lSpawnerData.ValueRO.mElitePrefab;
+                Entity lRunnerPrefab = lSpawnerData.ValueRO.mRunnerPrefab;
                 if (lPrefab == Entity.Null)
                 {
                     Debug.LogError("Spawner: Enemy Prefab is missing or corrupted!");
@@ -200,6 +210,20 @@ namespace Roguelike.DOTS
                             mEliteMeshID, mEliteMaterialID, lHealthMultiplier);
                     }
                     lRemaining -= lEliteCount;
+                }
+
+                // --- Runner packs (game mode only) ---
+                // A whole pack spawns as a cluster on one screen edge, at the rate set by the WaveDirector
+                if (!lIsBenchmark && mHasRunner)
+                {
+                    int lPackSize = WaveDirector.ConsumeRunnerPack(lRemaining);
+                    if (lPackSize > 0)
+                    {
+                        float3 lPackPosition = GetSpawnEdgePosition(ref lRandom, lCamPos, lWidth, lHeight, lMargin);
+                        SpawnGroup(ref pState, ref lRandom, lRunnerPrefab, lPackSize, lPackPosition, 1.5f,
+                            mRunnerMeshID, mRunnerMaterialID, lHealthMultiplier);
+                        lRemaining -= lPackSize;
+                    }
                 }
 
                 // --- Regular enemies ---

@@ -45,11 +45,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mDamage: 5
-  mMaxRadius: 7
+  mMaxRadius: 5
   mCooldown: 4
   mExpandDuration: 0.45
-  mKnockback: 20
+  mKnockback: 30
   mSprite: {fileID: 21300000, guid: 033e144a12e64653b01c5a17658fe6e7, type: 3}
-  mColor: {r: 1, g: 0.8, b: 0.35, a: 0.9}
+  mColor: {r: 1, g: 1, b: 1, a: 1}
   mSortingLayer: Entities
-  mAttackSound: {fileID: 8300000, guid: 590b5ad255465a44f944699f5dff4fe9, type: 3}
+  mAttackSound: {fileID: 8300000, guid: 5f3c180f310dd614caa2adfb49acb7d0, type: 3}

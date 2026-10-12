@@ -48,7 +48,7 @@ MonoBehaviour:
   mRadius: 2.5
   mTickInterval: 0.5
   mKnockback: 2
-  mSprite: {fileID: 2787405557371028919, guid: 5f4974e1f21cda64da7b82774b8529d4, type: 3}
-  mColor: {r: 1, g: 1, b: 1, a: 0.06666667}
+  mSprite: {fileID: 21300000, guid: 90b1e383be8f44378d45064b5f47e26e, type: 3}
+  mColor: {r: 1, g: 1, b: 1, a: 1}
   mSortingLayer: Default
   mDepthOffset: 0.1

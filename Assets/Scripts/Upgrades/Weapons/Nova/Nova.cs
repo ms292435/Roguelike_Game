@@ -38,6 +38,12 @@ namespace Roguelike
         private float mTimer;
         private float mWaveTime = -1f;
         private float mWaveRadius;
+        private int mWaveId;
+
+        /// <summary>
+        /// Last wave identifier given, shared by every Nova so that two waves never share an identifier.
+        /// </summary>
+        private static int sLastWaveId;
 
         /// <summary>
         /// Stores the weapon configuration data.
@@ -53,6 +59,7 @@ namespace Roguelike
         /// </summary>
         public void Attack()
         {
+            mWaveId = ++sLastWaveId;
             mWaveTime = 0f;
             mWaveRadius = 0f;
             if (mVisual != null) mVisual.enabled = true;
@@ -95,8 +102,9 @@ namespace Roguelike
             // Ease out: fast at first, slowing down at the end
             float lRadius = mMaxRadius * (1f - (1f - lProgress) * (1f - lProgress));
 
+            // The shockwave carries the enemies it crosses to its edge, and hits each of them only once
             DOTS.EnemyBridge.QueueAreaDamage(transform.position, mWaveRadius, lRadius,
-                mDamage * Player.Instance.Damage, mKnockback);
+                mDamage * Player.Instance.Damage, mKnockback, mMaxRadius, mWaveId);
             mWaveRadius = lRadius;
 
             if (mVisual != null && mSprite != null)

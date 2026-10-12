@@ -5,7 +5,8 @@ namespace Roguelike
     /// <summary>
     /// Area weapon dealing damage at regular intervals to every enemy within a radius around the player.
     /// The damage is applied in a parallel job through EnemyBridge.QueueAreaDamage, so it scales to dense hordes.
-    /// Draws its range under the enemies and the player, at a size that only changes when the aura is upgraded.
+    /// Draws its range under the enemies and the player, slowly spinning, at a size that only changes when the aura
+    /// is upgraded.
     /// </summary>
     public class Aura : MonoBehaviour, IWeapon
     {
@@ -21,6 +22,9 @@ namespace Roguelike
         [Header("Visuals")]
         public Sprite mSprite;
         public Color mColor = new(1f, 1f, 1f, 0.35f);
+
+        [Tooltip("Rotation speed of the aura visual, in degrees per second. Purely visual.")]
+        public float mRotationSpeed = 12f;
 
         [Tooltip("Sorting layer of the aura. Enemies are rendered by Entities Graphics, which ignores sorting layers: " +
                  "they always sort as Default, order 0. On the same layer, the aura is placed slightly further from the " +
@@ -78,6 +82,9 @@ namespace Roguelike
 
                 // Applied every frame so that the color and opacity can be tuned live in the Inspector
                 mVisual.color = mColor;
+
+                // Slow spin on itself; scaled delta time, so it stops when the game is paused
+                mVisual.transform.Rotate(0f, 0f, mRotationSpeed * pDeltaTime);
             }
 
             return false;

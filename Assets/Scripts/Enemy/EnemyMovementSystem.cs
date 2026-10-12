@@ -102,7 +102,11 @@ namespace Roguelike.DOTS
             /// </summary>
             public float mCellSize;
 
-            private const float KnockbackDamping = 10f;
+
+            /// <summary>
+            /// Knockback speed above which an enemy completely stops chasing the player.
+            /// </summary>
+            private const float StaggerKnockbackSpeed = 1.5f;
             private const float HitFlashFadeSpeed = 8f;
 
             /// <summary>
@@ -250,13 +254,17 @@ namespace Roguelike.DOTS
                 float3 finalDirection = math.normalizesafe(lTargetDirection + (pSpeed.mSmoothedSeparation * 8.0f));
                 finalDirection.z = 0f;
 
-                // Calculate new position with frame-rate independent movement
-                float3 newPosition = lCurrentPosition + (pSpeed.mValue * mDeltaTime * finalDirection);
-
                 // --- Hit Feedback ---
+                // A knocked back enemy is staggered: it stops chasing the player while the push is strong, then
+                // gradually resumes. Without this, its own movement cancels most of the push, especially for runners
+                float lStagger = math.saturate(math.length(pKnockback.mVelocity) / StaggerKnockbackSpeed);
+
+                // Calculate new position with frame-rate independent movement
+                float3 newPosition = lCurrentPosition + (pSpeed.mValue * (1f - lStagger) * mDeltaTime * finalDirection);
+
                 // The knockback pushes the enemy back, then fades out quickly (exponential damping)
                 newPosition += pKnockback.mVelocity * mDeltaTime;
-                pKnockback.mVelocity *= math.exp(-KnockbackDamping * mDeltaTime);
+                pKnockback.mVelocity *= math.exp(-EnemyKnockback.DampingRate * mDeltaTime);
 
                 // The red flash fades out in about 0.12 seconds
                 pHitFlash.mValue = math.max(0f, pHitFlash.mValue - HitFlashFadeSpeed * mDeltaTime);

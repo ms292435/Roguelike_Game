@@ -49,6 +49,21 @@ namespace Roguelike
             new Keyframe(150f, 12f),
             new Keyframe(300f, 5f));
 
+        [Tooltip("Time in seconds before the first runner pack.")]
+        public float mRunnerStartTime = 30f;
+
+        [Tooltip("Seconds between two runner packs, by elapsed time in seconds.")]
+        public AnimationCurve mRunnerPackInterval = new AnimationCurve(
+            new Keyframe(30f, 18f),
+            new Keyframe(150f, 10f),
+            new Keyframe(300f, 5f));
+
+        [Tooltip("Number of runners in a pack, by elapsed time in seconds.")]
+        public AnimationCurve mRunnerPackSize = new AnimationCurve(
+            new Keyframe(30f, 4f),
+            new Keyframe(150f, 8f),
+            new Keyframe(300f, 14f));
+
         [Tooltip("Camera orthographic size (how far the player sees), by horde size: the bigger the horde, the wider the view.")]
         public AnimationCurve mCameraSizeByHorde = new AnimationCurve(
             new Keyframe(8f, 6f),
@@ -68,6 +83,7 @@ namespace Roguelike
         private int mTargetEnemyCount;
         private float mSpawnBudget;
         private float mEliteBudget;
+        private float mRunnerBudget;
 
         /// <summary>
         /// Time elapsed since the start of the run, in seconds. Paused with the game.
@@ -104,6 +120,7 @@ namespace Roguelike
             ElapsedTime = 0f;
             sInstance.mSpawnBudget = 0f;
             sInstance.mEliteBudget = 0f;
+            sInstance.mRunnerBudget = 0f;
             sInstance.mTargetEnemyCount = Mathf.RoundToInt(sInstance.mTargetEnemies.Evaluate(0f));
             sInstance.mRunning = true;
 
@@ -147,6 +164,20 @@ namespace Roguelike
             return lCount;
         }
 
+        /// <summary>
+        /// Takes one runner pack from the budget accumulated since the last pack, if one is due.
+        /// </summary>
+        /// <param name="pMaxCount">Maximum number of enemies the spawner can add this frame.</param>
+        /// <returns>The number of runners in the pack to spawn this frame, or zero.</returns>
+        public static int ConsumeRunnerPack(int pMaxCount)
+        {
+            if (!IsRunning || pMaxCount <= 0 || sInstance.mRunnerBudget < 1f) return 0;
+
+            sInstance.mRunnerBudget -= 1f;
+            int lPackSize = Mathf.RoundToInt(sInstance.mRunnerPackSize.Evaluate(ElapsedTime));
+            return Mathf.Min(lPackSize, pMaxCount);
+        }
+
         private static void EnsureInstance()
         {
             if (sInstance != null) return;
@@ -185,6 +216,12 @@ namespace Roguelike
             float lRate = mSpawnRate.Evaluate(ElapsedTime);
             mSpawnBudget = Mathf.Min(mSpawnBudget + lRate * lDeltaTime, Mathf.Max(1f, lRate));
             mEliteBudget = Mathf.Min(mEliteBudget + lDeltaTime / Mathf.Max(0.1f, mEliteInterval.Evaluate(ElapsedTime)), 2f);
+
+            if (ElapsedTime >= mRunnerStartTime)
+            {
+                float lPackInterval = Mathf.Max(0.1f, mRunnerPackInterval.Evaluate(ElapsedTime));
+                mRunnerBudget = Mathf.Min(mRunnerBudget + lDeltaTime / lPackInterval, 2f);
+            }
 
             if (ElapsedTime >= mRunDuration && GameManager.Instance != null)
             {

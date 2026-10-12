@@ -69,7 +69,7 @@ namespace Roguelike.DOTS
                                 }
                                 else
                                 {
-                                    ApplyHitFeedback(lEntityManager, lData.mEntity, lEnemyPos - lPos);
+                                    ApplyHitFeedback(lEntityManager, lData.mEntity, lEnemyPos);
                                 }
 
                                 lHitCount++;
@@ -92,8 +92,10 @@ namespace Roguelike.DOTS
         /// <param name="pOuterRadius">Enemies further than this distance are not hit.</param>
         /// <param name="pDamage">Damage dealt to each enemy in the area.</param>
         /// <param name="pKnockback">Initial speed of the knockback pushing hit enemies away from the center.</param>
+        /// <param name="pPushToRadius">When above zero, hit enemies are pushed to around this distance from the center.</param>
+        /// <param name="pWaveId">Non-zero identifier of an expanding wave: each enemy is hit once per wave.</param>
         public static void QueueAreaDamage(Vector3 pCenter, float pInnerRadius, float pOuterRadius, float pDamage,
-            float pKnockback)
+            float pKnockback, float pPushToRadius = 0f, int pWaveId = 0)
         {
             var lWorld = World.DefaultGameObjectInjectionWorld;
             if (lWorld == null) return;
@@ -111,26 +113,36 @@ namespace Roguelike.DOTS
                 mOuterRadius = pOuterRadius,
                 mDamage = pDamage,
                 mKnockback = pKnockback,
+                mPushToRadius = pPushToRadius,
+                mWaveId = pWaveId,
             });
         }
 
         /// <summary>
-        /// Makes a surviving enemy flash red and pushes it away from the impact.
+        /// Makes a surviving enemy flash red and pushes it away from the player.
+        /// The push always goes away from the player rather than from the center of the impact: a sword slash centered
+        /// beside the player, or a projectile exploding just past its target, would otherwise push some enemies
+        /// towards the player.
         /// </summary>
         /// <param name="pEntityManager">The entity manager of the default world.</param>
         /// <param name="pEnemy">The enemy that took damage.</param>
-        /// <param name="pFromImpact">Vector from the center of the impact to the enemy.</param>
-        private static void ApplyHitFeedback(EntityManager pEntityManager, Entity pEnemy, float3 pFromImpact)
+        /// <param name="pEnemyPosition">Position of the enemy, with Z at 0.</param>
+        private static void ApplyHitFeedback(EntityManager pEntityManager, Entity pEnemy, float3 pEnemyPosition)
         {
             pEntityManager.SetComponentData(pEnemy, new EnemyHitFlash { mValue = 1f });
 
-            // An enemy hit right at the center of the impact has no direction: no push
+            if (Player.Instance == null) return;
+
+            Vector3 lPlayerPosition = Player.Instance.transform.position;
+            float3 lFromPlayer = pEnemyPosition - new float3(lPlayerPosition.x, lPlayerPosition.y, 0f);
+
+            // An enemy right on the player has no direction: no push
             float lScale = pEntityManager.GetComponentData<Unity.Transforms.LocalTransform>(pEnemy).Scale;
-            float3 lDirection = math.normalizesafe(pFromImpact);
-            pEntityManager.SetComponentData(pEnemy, new EnemyKnockback
-            {
-                mVelocity = lDirection * (KnockbackSpeed / math.max(1f, lScale))
-            });
+            float3 lDirection = math.normalizesafe(lFromPlayer);
+            var lKnockback = pEntityManager.GetComponentData<EnemyKnockback>(pEnemy);
+            lKnockback.mVelocity = EnemyKnockback.Strongest(lKnockback.mVelocity,
+                lDirection * (KnockbackSpeed / math.max(1f, lScale)));
+            pEntityManager.SetComponentData(pEnemy, lKnockback);
         }
 
         /// <summary>

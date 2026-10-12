@@ -24,6 +24,18 @@ namespace Roguelike.DOTS
         /// Initial speed of the knockback pushing hit enemies away from the center.
         /// </summary>
         public float mKnockback;
+
+        /// <summary>
+        /// When above zero, hit enemies are pushed hard enough to end up around this distance from the center
+        /// (a shockwave carrying the enemies to its edge). The knockback speed is the minimum push.
+        /// </summary>
+        public float mPushToRadius;
+
+        /// <summary>
+        /// Identifier of the wave this request belongs to, so that a wave hits each enemy only once.
+        /// Zero for requests that may hit the same enemy repeatedly (e.g. the Aura ticks).
+        /// </summary>
+        public int mWaveId;
     }
 
     /// <summary>
@@ -81,7 +93,8 @@ namespace Roguelike.DOTS
             [ReadOnly] public NativeArray<AreaDamageRequest> mRequests;
 
             private void Execute(in LocalTransform pTransform, ref EnemyHealthComponent pHealth,
-                ref EnemyHitFlash pHitFlash, ref EnemyKnockback pKnockback, EnabledRefRW<EnemyDeadTag> pDead)
+                ref EnemyHitFlash pHitFlash, ref EnemyKnockback pKnockback, ref EnemyWaveHit pWaveHit,
+                EnabledRefRW<EnemyDeadTag> pDead)
             {
                 if (pDead.ValueRO) return;
 
@@ -98,6 +111,13 @@ namespace Roguelike.DOTS
                                        || lSqrDistance > lRequest.mInnerRadius * lRequest.mInnerRadius);
                     if (!lInside) continue;
 
+                    // A wave hits each enemy only once
+                    if (lRequest.mWaveId != 0)
+                    {
+                        if (pWaveHit.mLastWaveId == lRequest.mWaveId) continue;
+                        pWaveHit.mLastWaveId = lRequest.mWaveId;
+                    }
+
                     pHealth.mValue -= lRequest.mDamage;
                     if (pHealth.mValue <= 0f)
                     {
@@ -107,8 +127,17 @@ namespace Roguelike.DOTS
 
                     // Same feedback as a direct hit: red flash and knockback, weaker on bigger enemies
                     pHitFlash.mValue = 1f;
-                    float2 lPush = math.normalizesafe(lFromCenter) * (lRequest.mKnockback / math.max(1f, pTransform.Scale));
-                    pKnockback.mVelocity = new float3(lPush, 0f);
+
+                    float lPushSpeed = lRequest.mKnockback;
+                    if (lRequest.mPushToRadius > 0f)
+                    {
+                        // Speed needed to travel the remaining distance to the target radius
+                        float lRemainingDistance = lRequest.mPushToRadius - math.sqrt(lSqrDistance);
+                        lPushSpeed = math.max(lPushSpeed, lRemainingDistance * EnemyKnockback.DampingRate);
+                    }
+
+                    float2 lPush = math.normalizesafe(lFromCenter) * (lPushSpeed / math.max(1f, pTransform.Scale));
+                    pKnockback.mVelocity = EnemyKnockback.Strongest(pKnockback.mVelocity, new float3(lPush, 0f));
                 }
             }
         }
