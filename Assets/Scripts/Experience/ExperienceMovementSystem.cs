@@ -140,7 +140,7 @@ namespace Roguelike.DOTS
                     lPos.z = 0f;
                     
                     // Update transform with new position
-                    pTransform = LocalTransform.FromPosition(lPos);
+                    pTransform.Position = lPos;   // Keeps the orb scale (orbs dropped by elites are bigger)
                     
                     // Recalculate squared distance after movement
                     lSqrDist = math.lengthsq(lPlayerPos - lPos);

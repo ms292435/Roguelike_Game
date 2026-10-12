@@ -1,6 +1,4 @@
-﻿using Cinemachine;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
@@ -10,11 +8,9 @@ namespace Roguelike
     /// <summary>
     /// Singleton manager handling player level-up progression, choice generation, and modal UI display.
     /// Implements IObserver to listen for "LevelUp" events from the Player subject.
-    /// Also manages cinematic camera zoom expansion as difficulty and player level scale up.
     /// </summary>
     public class LevelUpManager : MonoBehaviour, IObserver
     {
-        public CinemachineVirtualCamera mCamera;
         public TextMeshProUGUI mLevelText;
         public List<UpgradeData> mAllAvailableUpgrades;
 
@@ -26,7 +22,6 @@ namespace Roguelike
 
         private int mCurrentLevel = 1;
         private readonly Dictionary<UpgradeData, System.Action> mPendingActions = new();
-        private const float mMaxCameraDezoom = 30f;
 
         /// <summary>
         /// Observer callback invoked when an observed subject (Player) raises an event.
@@ -42,7 +37,7 @@ namespace Roguelike
         }
 
         /// <summary>
-        /// Handles level increment, pauses game timescale, rolls random upgrade choices, and animates camera zoom.
+        /// Handles level increment, pauses game timescale and rolls random upgrade choices.
         /// </summary>
         public void OnLevelUp()
         {
@@ -54,16 +49,6 @@ namespace Roguelike
             Time.timeScale = 0f;
             List<UpgradeData> lSelectedChoices = GetRandomUpgrades(3);
             ShowUpgradeOptions(lSelectedChoices);
-
-            if (mCurrentLevel % 2 == 0 && mCamera != null)
-            {
-                StopAllCoroutines(); // Avoid multiple zooms stacking if the player levels up multiple times quickly
-                if (mCamera.m_Lens.OrthographicSize < mMaxCameraDezoom)
-                {
-                    float lTargetSize = mCamera.m_Lens.OrthographicSize * 1.15f; // +15% dezoom
-                    StartCoroutine(SlowZoomRoutine(lTargetSize, 5.0f)); // 5.0f seconds
-                }
-            }
         }
 
         /// <summary>
@@ -119,7 +104,7 @@ namespace Roguelike
                 switch (lStatBoost.type)
                 {
                     case "Health":
-                        Player.Instance.Health *= lStatBoost.multiplier;
+                        Player.Instance.BoostMaxHealth(lStatBoost.multiplier);
                         break;
                     case "Damage":
                         Player.Instance.Damage *= lStatBoost.multiplier;
@@ -162,27 +147,6 @@ namespace Roguelike
                 .ToList();
         }
 
-        /// <summary>
-        /// Coroutine smoothly interpolating camera orthographic size using unscaled time.
-        /// </summary>
-        /// <param name="pTargetSize">Target orthographic size.</param>
-        /// <param name="pDuration">Transition duration in seconds.</param>
-        private IEnumerator SlowZoomRoutine(float pTargetSize, float pDuration)
-        {
-            float lStartSize = mCamera.m_Lens.OrthographicSize;
-            float lElapsed = 0f;
-
-            while (lElapsed < pDuration)
-            {
-                lElapsed += Time.unscaledDeltaTime; // Use unscaled time to ignore Time.timeScale = 0
-                float lPercent = lElapsed / pDuration;
-                mCamera.m_Lens.OrthographicSize = Mathf.SmoothStep(lStartSize, pTargetSize, lPercent);
-                yield return null;
-            }
-
-            mCamera.m_Lens.OrthographicSize = pTargetSize;
-        }
-
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -200,9 +164,6 @@ namespace Roguelike
         {
             if (Player.Instance != null)
                 Player.Instance.AddObserver(this);
-
-            if (mCamera != null)
-                mCamera.m_Lens.OrthographicSize = 30f; // Starting zoom level
         }
 
         private void OnDestroy()

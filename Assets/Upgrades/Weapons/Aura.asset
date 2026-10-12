@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce915bde9fcf3c84cb718f2c3e72cfd6, type: 3}
+  m_Name: Aura
+  m_EditorClassIdentifier: 
+  Name: Aura
+  Icon: {fileID: 2787405557371028919, guid: 5f4974e1f21cda64da7b82774b8529d4, type: 3}
+  Description: Damages every enemy around you
+  mWeaponLogicPrefab: {fileID: 2868786558350321303, guid: 15e9f99b71724e3ba0cf82ff8f3b01a1, type: 3}
+  mProjectilePrefab: {fileID: 0}
+  Type: Aura

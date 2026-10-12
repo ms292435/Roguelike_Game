@@ -1,5 +1,6 @@
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Rendering;
 using UnityEngine;
 
 namespace Roguelike.DOTS
@@ -21,6 +22,16 @@ namespace Roguelike.DOTS
         /// Configured in the editor and transferred to EnemyDamageComponent during baking.
         /// </summary>
         public int mDamage = 5;
+
+        /// <summary>
+        /// Health of the enemy at the start of a run. Scaled up over the run by the WaveDirector when spawned.
+        /// </summary>
+        public float mMaxHealth = 60f;
+
+        /// <summary>
+        /// Experience given by the orb dropped when a weapon kills this enemy.
+        /// </summary>
+        public float mExperience = 1f;
         
         /// <summary>
         /// Baker class that converts MonoBehaviour data to ECS components.
@@ -54,6 +65,20 @@ namespace Roguelike.DOTS
                 {
                     mValue = pAuthoring.mDamage                  // Transfer editor-configured damage value
                 });
+
+                AddComponent(lEntity, new EnemyHealthComponent
+                {
+                    mValue = pAuthoring.mMaxHealth
+                });
+
+                AddComponent(lEntity, new EnemyRewardComponent
+                {
+                    mExperience = pAuthoring.mExperience
+                });
+
+                // Hit feedback: red flash and knockback, both at rest
+                AddComponent(lEntity, new EnemyHitFlash { mValue = 0f });
+                AddComponent(lEntity, new EnemyKnockback { mVelocity = float3.zero });
 
                 // Add the death and contact markers, disabled until the enemy dies or touches the player
                 AddComponent<EnemyDeadTag>(lEntity);
@@ -97,6 +122,41 @@ namespace Roguelike.DOTS
         /// Applied when the enemy collides with the player entity.
         /// </summary>
         public int mValue;
+    }
+
+    /// <summary>
+    /// Remaining health of an enemy. Written on the main thread by the EnemyBridge when a weapon hits the enemy.
+    /// </summary>
+    public struct EnemyHealthComponent : IComponentData
+    {
+        public float mValue;
+    }
+
+    /// <summary>
+    /// Experience given by the orb dropped when a weapon kills the enemy.
+    /// </summary>
+    public struct EnemyRewardComponent : IComponentData
+    {
+        public float mExperience;
+    }
+
+    /// <summary>
+    /// Intensity of the red flash shown when the enemy takes damage, from 0 (none) to 1 (fully red).
+    /// Bound to the per-instance _HitFlash property of the enemy shader graphs: Entities Graphics uploads it to the GPU.
+    /// Set to 1 by the EnemyBridge on hit, then faded out by the movement job.
+    /// </summary>
+    [MaterialProperty("_HitFlash")]
+    public struct EnemyHitFlash : IComponentData
+    {
+        public float mValue;
+    }
+
+    /// <summary>
+    /// Velocity pushing the enemy away from the last hit, added to its movement and damped over time.
+    /// </summary>
+    public struct EnemyKnockback : IComponentData
+    {
+        public float3 mVelocity;
     }
 
     /// <summary>

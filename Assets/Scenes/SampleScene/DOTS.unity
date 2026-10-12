@@ -128,6 +128,10 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -3335033665446380049, guid: cc540824d722b9d46ba10d3acf8b7bf9, type: 3}
+      propertyPath: mMaxHealth
+      value: 60
+      objectReference: {fileID: 0}
+    - target: {fileID: -3335033665446380049, guid: cc540824d722b9d46ba10d3acf8b7bf9, type: 3}
       propertyPath: mMoveSpeed
       value: 1
       objectReference: {fileID: 0}
@@ -320,6 +324,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Roguelike.DOTS.EnemySpawnerAuthoring
   mEnemyPrefab: {fileID: 132872623360505547, guid: cc540824d722b9d46ba10d3acf8b7bf9, type: 3}
+  mElitePrefab: {fileID: 132872623360505547, guid: de852d1a00f9444aabee63e8fad890fc, type: 3}
   mDifficultyCurve:
     serializedVersion: 2
     m_Curve:

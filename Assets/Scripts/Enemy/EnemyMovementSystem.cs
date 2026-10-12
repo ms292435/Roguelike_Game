@@ -102,6 +102,9 @@ namespace Roguelike.DOTS
             /// </summary>
             public float mCellSize;
 
+            private const float KnockbackDamping = 10f;
+            private const float HitFlashFadeSpeed = 8f;
+
             /// <summary>
             /// Executes movement logic for a single enemy entity.
             /// Processes collision with player, separation from nearby enemies, and directional movement.
@@ -111,8 +114,11 @@ namespace Roguelike.DOTS
             /// <param name="pSpeed">Enemy speed component with smoothed separation (modified).</param>
             /// <param name="pDead">Death marker, enabled when the enemy dies.</param>
             /// <param name="pContact">Contact marker, enabled when the enemy dies by touching the player.</param>
+            /// <param name="pHitFlash">Red flash intensity, faded out over time.</param>
+            /// <param name="pKnockback">Knockback velocity, added to the movement and damped over time.</param>
             private void Execute(Entity pEntity, ref LocalTransform pTransform, ref EnemySpeedComponent pSpeed,
-                EnabledRefRW<EnemyDeadTag> pDead, EnabledRefRW<EnemyContactTag> pContact)
+                EnabledRefRW<EnemyDeadTag> pDead, EnabledRefRW<EnemyContactTag> pContact,
+                ref EnemyHitFlash pHitFlash, ref EnemyKnockback pKnockback)
             {
                 // Already dead (e.g. hit by a weapon this frame): nothing left to simulate
                 if (pDead.ValueRO) return;
@@ -131,7 +137,9 @@ namespace Roguelike.DOTS
                 // --- Death Detection: Only when enemy touches player ---
                 // Only flags the enemy: the EnemyDeathSystem destroys it, damages the player and drops the
                 // experience orb at the start of the next simulation, outside of any job
-                if (lSqrDistanceToPlayer < 1f)
+                // Bigger enemies (elites) touch the player from further away
+                float lContactRadius = 0.5f + 0.5f * pTransform.Scale;
+                if (lSqrDistanceToPlayer < lContactRadius * lContactRadius)
                 {
                     pDead.ValueRW = true;
                     pContact.ValueRW = true;
@@ -244,6 +252,15 @@ namespace Roguelike.DOTS
 
                 // Calculate new position with frame-rate independent movement
                 float3 newPosition = lCurrentPosition + (pSpeed.mValue * mDeltaTime * finalDirection);
+
+                // --- Hit Feedback ---
+                // The knockback pushes the enemy back, then fades out quickly (exponential damping)
+                newPosition += pKnockback.mVelocity * mDeltaTime;
+                pKnockback.mVelocity *= math.exp(-KnockbackDamping * mDeltaTime);
+
+                // The red flash fades out in about 0.12 seconds
+                pHitFlash.mValue = math.max(0f, pHitFlash.mValue - HitFlashFadeSpeed * mDeltaTime);
+
                 newPosition.z = 0f;
 
                 // --- Animation ---

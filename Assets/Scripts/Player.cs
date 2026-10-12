@@ -15,8 +15,19 @@ namespace Roguelike
         public float mAttractRadius = 2f;
         public float mCollectRadius = 1f;
 
+        [Header("Game Mode Stats")]
+        public float mStartHealth = 100f;
+        public float mStartMaxXP = 10f;
+
+        [Tooltip("Seconds of invulnerability after taking contact damage.")]
+        public float mInvulnerabilityDuration = 0.5f;
+
+        [Tooltip("Maximum damage taken in a single hit, however many enemies touch the player in the same frame.")]
+        public float mMaxDamagePerHit = 15f;
+
         public float CurrentXP { get; private set; }
         public float MaxXP { get; private set; }
+        public float MaxHealth { get; private set; }
 
         public static Player Instance { get; private set; }
 
@@ -25,6 +36,7 @@ namespace Roguelike
         private Rigidbody2D mRigidbody;
         private readonly List<IObserver> mObservers = new();
         private bool mIsDead = false;
+        private float mInvulnerableUntil;
 
         /// <summary>
         /// Registers an observer to receive player notifications.
@@ -85,6 +97,47 @@ namespace Roguelike
         }
 
         /// <summary>
+        /// Resets the player stats for the mode of the new session.
+        /// Benchmarks use an unreachable health and experience threshold, so that the player never dies and
+        /// level-up menus never pause the measurements.
+        /// </summary>
+        /// <param name="pBenchmark">True for a benchmark session, false for a regular game.</param>
+        public void ApplyModeStats(bool pBenchmark)
+        {
+            MaxHealth = pBenchmark ? 5000000f : mStartHealth;
+            Health = MaxHealth;
+            MaxXP = pBenchmark ? 100000f : mStartMaxXP;
+            CurrentXP = 0f;
+            mInvulnerableUntil = 0f;
+            Notify("Experience");
+        }
+
+        /// <summary>
+        /// Applies the damage of the enemies that touched the player this frame.
+        /// The player is briefly invulnerable after each hit, and a single hit is capped,
+        /// so a dense horde wears the player down instead of killing them instantly.
+        /// </summary>
+        /// <param name="pDamage">Total damage of the enemies that touched the player this frame.</param>
+        public void TakeContactDamage(float pDamage)
+        {
+            if (mIsDead || pDamage <= 0f || Time.time < mInvulnerableUntil) return;
+
+            Health -= Mathf.Min(pDamage, mMaxDamagePerHit);
+            mInvulnerableUntil = Time.time + mInvulnerabilityDuration;
+        }
+
+        /// <summary>
+        /// Increases the maximum health by a multiplier, and heals the player by the amount gained.
+        /// </summary>
+        /// <param name="pMultiplier">Multiplier applied to the maximum health.</param>
+        public void BoostMaxHealth(float pMultiplier)
+        {
+            float lGained = MaxHealth * (pMultiplier - 1f);
+            MaxHealth += lGained;
+            Health = Mathf.Min(Health + lGained, MaxHealth);
+        }
+
+        /// <summary>
         /// Adds experience points to the player and triggers level-up events when threshold is reached.
         /// </summary>
         /// <param name="pAmount">Amount of experience gained.</param>
@@ -117,10 +170,11 @@ namespace Roguelike
             Instance = this;
 
             mIsDead = false;
-            Health = 5000000f;
-            Damage = 100f;
+            MaxHealth = mStartHealth;
+            Health = MaxHealth;
+            Damage = 1f;   // Multiplier applied to every weapon's damage, raised by the Damage Up boost
             Speed = 4f;
-            MaxXP = 100000f;
+            MaxXP = mStartMaxXP;
             CurrentXP = 0f;
         }
 

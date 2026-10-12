@@ -48,6 +48,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Roguelike.DOTS.EnemyAuthoring
   mMoveSpeed: 2
   mDamage: 5
+  mMaxHealth: 35
+  mExperience: 1
 --- !u!33 &2581546007250333583
 MeshFilter:
   m_ObjectHideFlags: 0

@@ -12,13 +12,20 @@ namespace Roguelike.DOTS
     public static class EnemyBridge
     {
         /// <summary>
-        /// Kills all enemies within an area of effect by enabling their EnemyDeadTag.
-        /// The EnemyDeathSystem destroys them and drops their experience orbs at the start of the simulation.
+        /// Initial speed of the knockback applied to a regular enemy hit by a weapon, in world units per second.
+        /// Bigger enemies are pushed less, in proportion to their scale.
+        /// </summary>
+        private const float KnockbackSpeed = 5f;
+
+        /// <summary>
+        /// Damages all enemies within an area of effect. Each hit enemy flashes red and is pushed away from the
+        /// center of the impact. Enemies whose health drops to zero are flagged with their EnemyDeadTag: the
+        /// EnemyDeathSystem destroys them and drops their experience orbs at the start of the simulation.
         /// </summary>
         /// <param name="pPosition">Center of the impact area in world coordinates.</param>
         /// <param name="pRadius">Radius of the impact circle.</param>
-        /// <param name="pDamage">Damage amount (reserved for health system).</param>
-        /// <returns>Number of enemy entities hit within the radius.</returns>
+        /// <param name="pDamage">Damage dealt to each enemy in the area.</param>
+        /// <returns>Number of enemy entities hit within the radius, killed or not.</returns>
         public static int DealDamage(Vector3 pPosition, float pRadius, float pDamage)
         {
             if (!TryGetGrid(out EnemySpatialGrid lGrid, out EntityManager lEntityManager)) return 0;
@@ -52,7 +59,19 @@ namespace Roguelike.DOTS
                             if (lEntityManager.Exists(lData.mEntity)
                                 && !lEntityManager.IsComponentEnabled<EnemyDeadTag>(lData.mEntity))
                             {
-                                lEntityManager.SetComponentEnabled<EnemyDeadTag>(lData.mEntity, true);
+                                var lHealth = lEntityManager.GetComponentData<EnemyHealthComponent>(lData.mEntity);
+                                lHealth.mValue -= pDamage;
+                                lEntityManager.SetComponentData(lData.mEntity, lHealth);
+
+                                if (lHealth.mValue <= 0f)
+                                {
+                                    lEntityManager.SetComponentEnabled<EnemyDeadTag>(lData.mEntity, true);
+                                }
+                                else
+                                {
+                                    ApplyHitFeedback(lEntityManager, lData.mEntity, lEnemyPos - lPos);
+                                }
+
                                 lHitCount++;
                             }
                         }
@@ -61,6 +80,57 @@ namespace Roguelike.DOTS
             }
 
             return lHitCount;
+        }
+
+        /// <summary>
+        /// Queues damage for every enemy within a ring around a point, applied in a parallel Burst job by the
+        /// EnemyAreaDamageSystem during the next simulation update. Meant for area weapons hitting many enemies at once,
+        /// where processing each hit enemy on the main thread would be too slow.
+        /// </summary>
+        /// <param name="pCenter">Center of the area in world coordinates.</param>
+        /// <param name="pInnerRadius">Enemies at this distance or closer are not hit (0 for a full disc).</param>
+        /// <param name="pOuterRadius">Enemies further than this distance are not hit.</param>
+        /// <param name="pDamage">Damage dealt to each enemy in the area.</param>
+        /// <param name="pKnockback">Initial speed of the knockback pushing hit enemies away from the center.</param>
+        public static void QueueAreaDamage(Vector3 pCenter, float pInnerRadius, float pOuterRadius, float pDamage,
+            float pKnockback)
+        {
+            var lWorld = World.DefaultGameObjectInjectionWorld;
+            if (lWorld == null) return;
+
+            var lSystemHandle = lWorld.Unmanaged.GetExistingUnmanagedSystem<EnemyAreaDamageSystem>();
+            if (lSystemHandle == SystemHandle.Null) return;
+
+            ref var lSystem = ref lWorld.Unmanaged.GetUnsafeSystemRef<EnemyAreaDamageSystem>(lSystemHandle);
+            if (!lSystem.mPendingRequests.IsCreated) return;
+
+            lSystem.mPendingRequests.Add(new AreaDamageRequest
+            {
+                mCenter = new float2(pCenter.x, pCenter.y),
+                mInnerRadius = pInnerRadius,
+                mOuterRadius = pOuterRadius,
+                mDamage = pDamage,
+                mKnockback = pKnockback,
+            });
+        }
+
+        /// <summary>
+        /// Makes a surviving enemy flash red and pushes it away from the impact.
+        /// </summary>
+        /// <param name="pEntityManager">The entity manager of the default world.</param>
+        /// <param name="pEnemy">The enemy that took damage.</param>
+        /// <param name="pFromImpact">Vector from the center of the impact to the enemy.</param>
+        private static void ApplyHitFeedback(EntityManager pEntityManager, Entity pEnemy, float3 pFromImpact)
+        {
+            pEntityManager.SetComponentData(pEnemy, new EnemyHitFlash { mValue = 1f });
+
+            // An enemy hit right at the center of the impact has no direction: no push
+            float lScale = pEntityManager.GetComponentData<Unity.Transforms.LocalTransform>(pEnemy).Scale;
+            float3 lDirection = math.normalizesafe(pFromImpact);
+            pEntityManager.SetComponentData(pEnemy, new EnemyKnockback
+            {
+                mVelocity = lDirection * (KnockbackSpeed / math.max(1f, lScale))
+            });
         }
 
         /// <summary>

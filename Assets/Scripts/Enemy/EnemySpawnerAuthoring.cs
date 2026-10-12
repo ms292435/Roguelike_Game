@@ -11,6 +11,11 @@ namespace Roguelike.DOTS
     public class EnemySpawnerAuthoring : MonoBehaviour
     {
         public GameObject mEnemyPrefab;
+
+        /// <summary>
+        /// Optional tougher enemy spawned regularly during a regular game, at the rate set by the WaveDirector.
+        /// </summary>
+        public GameObject mElitePrefab;
         public AnimationCurve mDifficultyCurve;
         
         /// <summary>
@@ -44,6 +49,11 @@ namespace Roguelike.DOTS
                     // Convert the enemy prefab GameObject to an entity reference
                     // Uses Dynamic flags to allow instantiated enemies to move
                     mPrefab = GetEntity(pAuthoring.mEnemyPrefab, TransformUsageFlags.Dynamic),
+
+                    // Optional elite prefab
+                    mElitePrefab = pAuthoring.mElitePrefab != null
+                        ? GetEntity(pAuthoring.mElitePrefab, TransformUsageFlags.Dynamic)
+                        : Entity.Null,
                     
                     // Transfer spawn interval settings from editor configuration
                     mBaseSpawnInterval = pAuthoring.mBaseSpawnInterval,
@@ -80,6 +90,7 @@ namespace Roguelike.DOTS
     public struct EnemySpawnerData : IComponentData
     {
         public Unity.Entities.Entity mPrefab;
+        public Unity.Entities.Entity mElitePrefab;
         public float mBaseSpawnInterval;
         public int mBaseEnemiesPerWave;
         public float mTimer;

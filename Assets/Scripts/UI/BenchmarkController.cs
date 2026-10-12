@@ -114,6 +114,9 @@ namespace Roguelike
 
         private void Update()
         {
+            // The benchmark controls are only available in Benchmark mode
+            if (!GameManager.IsBenchmarkMode) return;
+
             ProcessKeyboardInput();
         }
 
@@ -194,7 +197,7 @@ namespace Roguelike
 
         private void OnGUI()
         {
-            if (!mShowOverlay) return;
+            if (!mShowOverlay || !GameManager.IsBenchmarkMode) return;
 
             InitializeStyles();
 
