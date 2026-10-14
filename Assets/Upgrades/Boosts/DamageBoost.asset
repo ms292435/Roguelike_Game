@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Name: Damage Up
   Icon: {fileID: 1648787396, guid: cea5c615bee92c249a08d243b161cef7, type: 3}
-  Description: +25% Damage
-  multiplier: 1.25
+  Description: +10% Damage
+  multiplier: 1.1
   type: Damage

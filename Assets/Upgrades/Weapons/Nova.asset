@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce915bde9fcf3c84cb718f2c3e72cfd6, type: 3}
+  m_Name: Nova
+  m_EditorClassIdentifier: 
+  Name: Nova
+  Icon: {fileID: 21300000, guid: 033e144a12e64653b01c5a17658fe6e7, type: 3}
+  Description: Releases a shockwave that pushes enemies back
+  mWeaponLogicPrefab: {fileID: 2868786558350321303, guid: f5673c63681d45f9b44e51dd39b1ce4e, type: 3}
+  mProjectilePrefab: {fileID: 0}
+  MaxLevel: 7

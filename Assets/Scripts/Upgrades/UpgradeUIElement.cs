@@ -29,7 +29,7 @@ namespace Roguelike
             mManager = pManager;
 
             mTitleText.text = pData.Name;
-            mDescriptionText.text = !string.IsNullOrEmpty(pDescription) ? pDescription : pData.Description; 
+            mDescriptionText.text = !string.IsNullOrEmpty(pDescription) ? pDescription : pData.Description;
             mIconImage.sprite = pData.Icon;
         }
 

@@ -1,11 +1,15 @@
 # Roguelike Benchmark: Classic OOP vs. Unity DOTS/ECS
 
-[![Unity Version](https://img.shields.io/badge/Unity-6000.4.0f1-black?logo=unity)](https://unity.com/)
+[![Unity Version](https://img.shields.io/badge/Unity-6000.4.5f1-black?logo=unity)](https://unity.com/)
 [![DOTS / Entities](https://img.shields.io/badge/Unity%20DOTS-Entities%206.4-blue?logo=unity)](https://unity.com/dots)
 [![Burst Compiler](https://img.shields.io/badge/Burst-Compiled-green)](https://docs.unity3d.com/Packages/com.unity.burst@latest)
 [![Architecture](https://img.shields.io/badge/Architecture-Hybrid%20ECS%20%2F%20Facade-orange)](#phase-2-dotsecs-hybrid-architecture)
 
 A performance benchmark and portfolio project developed in **Unity 6**. The same Survivor-like game is implemented twice, once with **classic Object-Oriented Programming (MonoBehaviour)** and once with the **Data-Oriented Technology Stack (DOTS / ECS)**, then profiled under identical conditions to measure where each architecture reaches its limits, and why.
+
+> ### DOTS/ECS handles **30× more enemies** at a playable framerate (8,000 → 250,000), and simulates them **91× faster** (45.59 ms → 0.50 ms at 10,000 enemies).
+
+The DOTS version is also a **playable game**: a 5-minute survival run against a horde of up to 20,000 enemies, ending with a final boss (see [Game Mode](#game-mode)).
 
 ![In-Game Horde Benchmark](Documentation/images/gameplay_horde.png)
 
@@ -37,12 +41,13 @@ Full methodology and per-step analysis: [Performance Comparison](#performance-co
 3. [Phase 2: DOTS/ECS & Hybrid Architecture](#phase-2-dotsecs-hybrid-architecture)
 4. [Performance Comparison & Hardware Analysis](#performance-comparison-hardware-analysis)
 5. [Phase 3: Profiling-Driven Optimization](#phase-3-profiling-driven-optimization)
-6. [Challenges & Lessons Learned](#challenges-lessons-learned)
-7. [Next Steps](#next-steps)
-8. [Getting Started](#getting-started)
-9. [Controls & In-Game Benchmark HUD](#controls-in-game-benchmark-hud)
-10. [Code Conventions](#code-conventions)
-11. [Tech Stack](#tech-stack)
+6. [Game Mode: A Playable Survivor-like on Top of ECS](#game-mode)
+7. [Challenges & Lessons Learned](#challenges-lessons-learned)
+8. [Next Steps](#next-steps)
+9. [Getting Started](#getting-started)
+10. [Controls & In-Game Benchmark HUD](#controls-in-game-benchmark-hud)
+11. [Code Conventions](#code-conventions)
+12. [Tech Stack](#tech-stack)
 
 ---
 
@@ -111,46 +116,52 @@ The architecture below is the current one, including the changes made in [Phase 
 ```mermaid
 flowchart TD
     subgraph AuthoringLayer ["1. Subscene Authoring & Baking"]
-        EA["EnemyAuthoring"] -->|Baker| EC["Enemy Entity<br/>Speed + Damage + Dead/Contact flags"]
+        EA["EnemyAuthoring"] -->|Baker| EC["Enemy Entity<br/>Speed, Damage, Health, Reward,<br/>Knockback, HitFlash, Dead/Contact flags"]
         ESA["EnemySpawnerAuthoring"] -->|Baker| ED["Spawner Entity + EnemySpawnerData"]
     end
 
     subgraph SimulationPipeline ["2. SimulationSystemGroup (in update order)"]
         direction TB
         subgraph Structural ["Structural phase (main thread, start of frame)"]
-            EDS["<b>EnemyDeathSystem</b><br/>Batch-destroy flagged enemies, drop XP, damage player"]
+            EDS["<b>EnemyDeathSystem</b><br/>Batch-destroy flagged enemies, drop XP and pickups, damage player"]
             EXC["<b>ExperienceCollectionSystem</b><br/>Collect flagged orbs"]
             ESS["<b>EnemySpawnerSystem</b><br/>Spawn / trim / clear the horde"]
         end
         subgraph Jobs ["Jobs (worker threads, never waited for during the frame)"]
+            EAD["<b>EnemyAreaDamageSystem</b><br/>Queued area damage (Aura, Nova, bomb)"]
             EXM["<b>ExperienceMovementSystem</b><br/>Orb attraction"]
             EHS["<b>EnemyHashSystem</b><br/>Parallel counting sort: sorted spatial grid"]
-            EMS["<b>EnemyMovementSystem</b><br/>Seek + Separation, flags deaths"]
+            EMS["<b>EnemyMovementSystem</b><br/>Seek + Separation + knockback, flags deaths"]
             ECS["<b>EnemyCounterSystem</b><br/>Total count + visibility job"]
         end
-        EDS --> EXC --> ESS --> EXM --> EHS --> EMS --> ECS
+        EDS --> EXC --> ESS --> EAD --> EXM --> EHS --> EMS --> ECS
     end
 
     subgraph HybridFacade ["3. Architectural Bridge (Facade Pattern)"]
-        EB["<b>EnemyBridge</b> (Static Facade)<br/>• TryGetClosestEnemy()<br/>• DealDamage()<br/>• CheckCollision()"]
-        BC["<b>BenchmarkController</b><br/>Runtime horde target (0 - 1M)"]
+        EB["<b>EnemyBridge</b> (Static Facade)<br/>• TryGetClosestEnemy()<br/>• DealDamage()<br/>• QueueAreaDamage()<br/>• CheckCollision()"]
+        BC["<b>BenchmarkController</b><br/>Benchmark horde target (0 - 1M)"]
+        WD["<b>WaveDirector</b><br/>Game mode horde target and spawn budgets"]
     end
 
     subgraph GameplayLayer ["4. Gameplay Domain (MonoBehaviour)"]
         FW["FireWand (IWeapon)"]
         SW["Sword (IWeapon)"]
+        AN["Aura / Nova (IWeapon)"]
         PR["Projectile"]
         UI["Benchmark HUD & EnemyCounterUI"]
     end
 
     BC -->|"Sets target count"| ESS
+    WD -->|"Sets target count"| ESS
     UI -->|"Reads total & visible"| ECS
     FW -->|"TryGetClosestEnemy()"| EB
     SW -->|"DealDamage()"| EB
     PR -->|"DealDamage()"| EB
+    AN -->|"QueueAreaDamage()"| EB
 
     EB -->|"Reads spatial grid"| EHS
-    EB -->|"Flags hit enemies (EnemyDeadTag)"| EDS
+    EB -->|"Queues area damage"| EAD
+    EB -->|"Flags killed enemies (EnemyDeadTag)"| EDS
 ```
 
 ### Data-Oriented Design (DOD) Principles
@@ -170,19 +181,21 @@ Chunk: [ Transform | Transform | Transform ... ]   <-- read linearly, prefetched
 
 ### Core Systems Overview
 
-1. [`EnemyDeathSystem`](Assets/Scripts/Enemy/EnemyDeathSystem.cs): at the start of the frame, destroys every enemy flagged with `EnemyDeadTag` in one batch, drops their experience orbs, and applies the damage of the enemies that touched the player. Gathering the structural changes here means no enemy job ever has to be waited for during its frame.
-2. [`EnemySpawnerSystem`](Assets/Scripts/Enemy/EnemySpawnerSystem.cs): instantiates enemies along the camera edges in batches (up to 25,000 per frame) until the target count is reached, and trims or clears the horde when the target drops.
-3. [`EnemyHashSystem`](Assets/Scripts/Enemy/EnemyHashSystem.cs): builds a sorted spatial grid with a parallel counting sort (keys and counting, prefix sum, scatter), so the enemies of a cell are stored contiguously in memory.
-4. [`EnemyMovementSystem`](Assets/Scripts/Enemy/EnemyMovementSystem.cs): parallel Burst `IJobEntity` combining *Seek* and *Separation*. Separation is time-sliced over 4 frames, limited to 4 neighbors, and visits cells in a spiral order to avoid directional bias. Enemies touching the player are only flagged (`EnemyDeadTag` + `EnemyContactTag`), so the job never writes into a command buffer.
-5. [`EnemyCounterSystem`](Assets/Scripts/UI/EnemyCounterSystem.cs): reads the total count from chunk metadata and counts on-screen enemies with a Burst job, for the HUD.
-6. [`ExperienceMovementSystem` / `ExperienceCollectionSystem`](Assets/Scripts/Experience/ExperienceMovementSystem.cs): attract experience orbs towards the player, and collect them at the start of the next frame (through the `BeginSimulation` command buffer).
+1. [`EnemyDeathSystem`](Assets/Scripts/Enemy/EnemyDeathSystem.cs): at the start of the frame, destroys every enemy flagged with `EnemyDeadTag` in one batch, drops their experience orbs (and, rarely, a pickup), updates the score and applies the damage of the enemies that touched the player. Gathering the structural changes here means no enemy job ever has to be waited for during its frame.
+2. [`EnemySpawnerSystem`](Assets/Scripts/Enemy/EnemySpawnerSystem.cs): instantiates enemies along the camera edges until the target count is reached, and trims or clears the horde when the target drops. In Benchmark mode it fills the horde as fast as possible (up to 25,000 per frame); in Game mode it follows the spawn budgets of the `WaveDirector`, including elites, runner packs and the final boss.
+3. [`EnemyAreaDamageSystem`](Assets/Scripts/Enemy/EnemyAreaDamageSystem.cs): applies the area damage queued by the weapons (rings and discs) in a parallel Burst job over all enemies: health, hit flash, knockback and death flag.
+4. [`EnemyHashSystem`](Assets/Scripts/Enemy/EnemyHashSystem.cs): builds a sorted spatial grid with a parallel counting sort (keys and counting, prefix sum, scatter), so the enemies of a cell are stored contiguously in memory.
+5. [`EnemyMovementSystem`](Assets/Scripts/Enemy/EnemyMovementSystem.cs): parallel Burst `IJobEntity` combining *Seek* and *Separation*. Separation is time-sliced over 4 frames, limited to 4 neighbors, and visits cells in a spiral order to avoid directional bias. The same job applies the knockback and fades the hit flash. Enemies touching the player are only flagged (`EnemyDeadTag` + `EnemyContactTag`), so the job never writes into a command buffer.
+6. [`EnemyCounterSystem`](Assets/Scripts/UI/EnemyCounterSystem.cs): reads the total count from chunk metadata and counts on-screen enemies with a Burst job, for the HUD.
+7. [`ExperienceMovementSystem` / `ExperienceCollectionSystem`](Assets/Scripts/Experience/ExperienceMovementSystem.cs): attract experience orbs towards the player, and collect them at the start of the next frame (through the `BeginSimulation` command buffer).
 
 ### Decoupling with the EnemyBridge Facade
 
 [`EnemyBridge`](Assets/Scripts/Enemy/EnemyBridge.cs) keeps the gameplay code independent from ECS:
 - **No leaky abstractions**: weapons and projectiles never import `Unity.Entities` nor access the ECS world directly.
 - **Encapsulated grid**: the cell size is `internal` to the simulation; weapons simply call `EnemyBridge.TryGetClosestEnemy(origin, range, out target)`.
-- **Single-pass damage**: `DealDamage` flags the enemies in range and returns the hit count in one grid traversal, instead of a collision check followed by a damage query.
+- **Single-pass damage**: `DealDamage` damages the enemies in range, flags the ones it kills and returns the hit count in one grid traversal, instead of a collision check followed by a damage query.
+- **Area damage off the main thread**: `QueueAreaDamage` only records a request; `EnemyAreaDamageSystem` applies it to every enemy in a parallel job, so an Aura or a bomb hitting thousands of enemies costs almost nothing on the main thread.
 - **Safe main-thread access**: the grid jobs are not waited for during their frame, so the bridge completes their handle before reading the grid (the jobs are long finished by then, so this costs nothing).
 
 ---
@@ -207,6 +220,7 @@ Chunk: [ Transform | Transform | Transform ... ]   <-- read linearly, prefetched
 - **Frame metric**: `PlayerLoop`, the whole CPU frame (simulation, rendering preparation, UI).
 - **Scenario**: the player stands still with a single weapon active, so the horde size stays stable during the capture.
 - **Protocol**: profiler values come from a representative frame once the horde size is stable. FPS values are read from the in-game FPS counter.
+- **Scope**: these measurements were taken before the [Game Mode](#game-mode) was added. The Benchmark mode keeps the same scenario (no waves, elites or pickups), but enemies now also carry health, knockback and hit-flash data, so the movement job does slightly more work than when it was measured.
 
 ### DOTS / ECS Results
 
@@ -339,8 +353,8 @@ Frame time measured as a **median over a few hundred frames** (Highlights module
 
 | Enemies | 50k | 100k | 250k | 500k | 1M |
 |:---|:---:|:---:|:---:|:---:|:---:|
-| **Frame, Phase 2** (single frame) | 6.83 ms | 9.88 ms | 22.93 ms | 43.00 ms | 88.62 ms |
-| **Frame, Phase 3** (median) | 5.62 ms | 9.39 ms | 22.20 ms | 44.60 ms | 87.27 ms |
+| **Frame, Phase 2** | 6.83 ms | 9.88 ms | 22.93 ms | 45.00 ms | 88.62 ms |
+| **Frame, Phase 3** | 5.62 ms | 9.39 ms | 22.20 ms | 44.60 ms | 87.27 ms |
 
 The difference is within the measurement noise, and the whole-frame Timeline shows why:
 
@@ -350,6 +364,47 @@ The difference is within the measurement noise, and the whole-frame Timeline sho
 - **The most expensive job is now a rendering job**: `ExecuteGpuUploads` (Entities Graphics) uploads the matrix of every enemy that moved (all of them, every frame): ~15–19 ms of CPU time across all threads at 100k, up to ~160–185 ms at 1M.
 
 This is **Amdahl's law** in practice: the simulation is now a small part of the frame, so optimizing it further cannot show in the framerate. Phase 3 did not raise the FPS, but it reached its real goal: the bottleneck has moved out of the game simulation, which no longer blocks the main thread and costs about half as much CPU time to partition.
+
+---
+
+<a id="game-mode"></a>
+## Game Mode: A Playable Survivor-like on Top of ECS
+
+The benchmark scene doubles as a real game: a **5-minute survival run** whose horde grows from a handful of enemies to **20,000**, with elites, fast runner packs, four weapons with upgrades and mastery bonuses, rare pickups (heal, magnet, bomb) and a **final boss** at 5:00. The Benchmark mode is still one click away in the main menu.
+
+```mermaid
+flowchart LR
+    subgraph Gameplay ["Gameplay (MonoBehaviour)"]
+        GM["GameManager"] -->|starts the run| WD["WaveDirector<br/>difficulty curves"]
+        P["Player"] --> WM["WeaponManager"]
+        WM --> DW["Sword / FireWand<br/>direct hits"]
+        WM --> AW["Aura / Nova / Bomb<br/>area damage"]
+        P -->|"level up (observer)"| UI["LevelUpManager / HUD"]
+    end
+
+    subgraph ECS ["DOTS / ECS (Burst jobs)"]
+        EB["<b>EnemyBridge</b><br/>facade"]
+        ESS["EnemySpawnerSystem"]
+        EHS["EnemyHashSystem<br/>spatial grid"]
+        EAD["EnemyAreaDamageSystem"]
+        EMS["EnemyMovementSystem"]
+        EDS["EnemyDeathSystem"]
+        XP["Experience systems"]
+    end
+
+    DW -->|DealDamage| EB
+    AW -->|QueueAreaDamage| EB
+    EB -->|reads the grid| EHS
+    EB -->|queues requests| EAD
+    WD -->|spawn budgets| ESS
+    EHS -->|neighbours| EMS
+    EDS -->|contact damage, victory| P
+    XP -->|experience| P
+```
+
+- **Same facade, new weapons**: area weapons can hit thousands of enemies at once, too many to process one by one on the main thread. They only queue a request through `EnemyBridge.QueueAreaDamage`; a parallel Burst job (`EnemyAreaDamageSystem`) applies the damage, the red hit flash and the knockback to every enemy in range.
+- **Data-driven difficulty**: the `WaveDirector` drives the horde size, spawn rate, enemy health, elites and runner packs with `AnimationCurve`s tuned in the Inspector, and zooms the camera out as the horde grows.
+- **Per-instance hit flash**: an `[MaterialProperty("_HitFlash")]` component is uploaded to the GPU by Entities Graphics, so each of the 20,000 enemies can flash independently without breaking batching.
 
 ---
 
@@ -363,6 +418,8 @@ This is **Amdahl's law** in practice: the simulation is now a small part of the 
 - **Removing a sync point does not remove work.** Letting the enemy jobs overlap with the rendering only helped while some cores were idle; once the workers were saturated, the wait simply moved into the rendering.
 - **Jobs that outlive their frame must be completed explicitly.** After Step A, the weapons read the spatial grid at the start of the next frame: the job had finished long before, but Unity's safety system still threw an exception because nothing had called `Complete()` on it.
 - **Less total work can still be slower.** The first sorted grid halved the CPU time but ran its sort on a single thread, lengthening the critical path. Parallelizing it with atomics spread over many counters fixed it.
+- **Baking merges render data per subscene.** All the enemy prefabs share a single `RenderMeshArray`: registering "the first mesh and material" gave every elite the regular enemy's sprite. The spawner now reads each prefab's own index from its `MaterialMeshInfo`.
+- **Entities Graphics ignores sorting layers.** Enemies are drawn by the `BatchRendererGroup`, so sprite sorting layers and orders have no effect on them, and sorting transparent sprites by distance was unreliable in builds. Enemies and orbs are now opaque (alpha clip) and ordered by the depth buffer, and the ground and the Aura are drawn first through their render queue.
 - **Change the measurement when the code changes.** Once the main thread stopped waiting for the jobs, `SimulationSystemGroup` dropped to a fraction of a millisecond without the simulation being cheaper: from then on, the frame time, the FPS and the Timeline job durations were the only meaningful metrics.
 
 ---
@@ -380,21 +437,25 @@ This is **Amdahl's law** in practice: the simulation is now a small part of the 
 <a id="getting-started"></a>
 ## Getting Started
 
-**Requirements**: Unity **6000.4.0f1** (the DOTS packages are resolved automatically from `Packages/manifest.json`).
+**Requirements**: Unity **6000.4.5f1** (the DOTS packages are resolved automatically from `Packages/manifest.json`).
 
 | Branch | Content |
 |:---|:---|
 | `main` | DOTS / ECS implementation |
+| `Gameplay` | DOTS / ECS implementation with the Game mode |
 | `ObjectOrientedProgramming` | Classic OOP implementation (Phase 1) |
 
 1. Clone the repository and check out the branch to benchmark.
 2. Open the project in Unity and load `Assets/Scenes/SampleScene.unity`.
-3. To reproduce the measurements, create a **Development Build** with **Autoconnect Profiler** enabled, then use the [benchmark HUD](#controls-in-game-benchmark-hud) to set the horde size.
+3. Press Play and choose **Play** (Game mode) or **Benchmark** in the main menu.
+4. To reproduce the measurements, create a **Development Build** with **Autoconnect Profiler** enabled, start the **Benchmark** mode, then use the [benchmark HUD](#controls-in-game-benchmark-hud) to set the horde size.
 
 ---
 
 <a id="controls-in-game-benchmark-hud"></a>
 ## Controls & In-Game Benchmark HUD
+
+The benchmark controls are only active in Benchmark mode.
 
 | Hotkey / Control | Action | Details |
 |:---:|:---|:---|
@@ -403,14 +464,15 @@ This is **Amdahl's law** in practice: the simulation is now a small part of the 
 | **HUD buttons** | **Fine Adjustments** | `-50k` &bull; `-10k` &bull; `-1k` &bull; `+1k` &bull; `+10k` &bull; `+50k` &bull; `Clear All` |
 | **C** or **Delete** | **Clear All** | Destroys all active enemies and XP orbs |
 | **F1** | **Toggle HUD** | Shows / hides the on-screen benchmark interface |
-| **Z, Q, S, D** / Arrows | **Movement** | Player controls |
+| **W, A, S, D** (Z, Q, S, D on AZERTY) | **Movement** | Player controls |
+| **Escape** | **Pause** | Resume, switch mode, main menu, quit |
 
 ---
 
 <a id="code-conventions"></a>
 ## Code Conventions
 
-- **Project naming conventions**: `m` prefix for fields (`mSpatialGrid`), `p` for parameters (`pDeltaTime`), `l` for local variables (`lPlayerPos`).
+- **Project naming conventions**: `m` prefix for fields (`mSpatialGrid`), `s` for static fields (`sInstance`), `p` for parameters (`pDeltaTime`), `l` for local variables (`lPlayerPos`), PascalCase for constants (`CellSize`).
 - **Native memory**: every native container (`NativeArray`, `NativeReference`) is disposed in `OnDestroy()`.
 - **Safe structural changes**: all structural changes happen in one phase at the start of the frame; jobs and weapons only enable flags (`EnemyDeadTag`), so an enemy can never be destroyed twice.
 - **Documentation**: public types, systems and methods are documented with XML doc comments.
@@ -419,7 +481,8 @@ This is **Amdahl's law** in practice: the simulation is now a small part of the 
 
 <a id="tech-stack"></a>
 ## Tech Stack
-- **Engine**: Unity 6 (6000.4.0f1)
+- **Engine**: Unity 6 (6000.4.5f1)
 - **DOTS Packages**: `com.unity.entities` (6.4.0), `com.unity.entities.graphics` (6.4.0), `com.unity.burst` (1.8.29), `com.unity.mathematics` (1.3.3)
 - **Input System**: `com.unity.inputsystem` (1.19.0)
+- **Camera**: Cinemachine (2.10.7)
 - **Rendering**: Universal Render Pipeline (17.4.0), Entities Graphics (`BatchRendererGroup`)

@@ -22,6 +22,11 @@ namespace Roguelike.DOTS
         /// Grid cell of the enemy. Several cells can share a bucket, so lookups compare it to the requested cell.
         /// </summary>
         public int2 mCell;
+
+        /// <summary>
+        /// Radius of the enemy (half its scale): weapons hit the edge of the enemy, not only its center.
+        /// </summary>
+        public float mRadius;
     }
 
     /// <summary>
@@ -297,6 +302,7 @@ namespace Roguelike.DOTS
                 mEntity = pEntity,
                 mPosition = pTransform.Position,
                 mCell = lCell,
+                mRadius = 0.5f * pTransform.Scale,
             };
 
             // Atomic increment: other threads may count enemies of the same bucket at the same time

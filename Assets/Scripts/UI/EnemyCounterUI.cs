@@ -16,7 +16,11 @@ namespace Roguelike
 
         private void Update()
         {
-            if (mLabel != null)
+            if (mLabel == null) return;
+
+            // Benchmark statistics are only shown in Benchmark mode
+            mLabel.enabled = GameManager.IsBenchmarkMode;
+            if (mLabel.enabled)
             {
                 mLabel.text = $"Visible Enemies : {EnemyCounterSystem.VisibleEnemies:N0}\nTotal Enemies : {EnemyCounterSystem.TotalEnemies:N0} / Target : {BenchmarkController.TargetEnemyCount:N0}";
             }

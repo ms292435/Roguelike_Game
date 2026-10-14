@@ -1,5 +1,6 @@
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Rendering;
 using UnityEngine;
 
 namespace Roguelike.DOTS
@@ -21,6 +22,38 @@ namespace Roguelike.DOTS
         /// Configured in the editor and transferred to EnemyDamageComponent during baking.
         /// </summary>
         public int mDamage = 5;
+
+        /// <summary>
+        /// Health of the enemy at the start of a run. Scaled up over the run by the WaveDirector when spawned.
+        /// </summary>
+        public float mMaxHealth = 60f;
+
+        /// <summary>
+        /// Experience given by the orb dropped when a weapon kills this enemy.
+        /// </summary>
+        public float mExperience = 1f;
+
+        /// <summary>
+        /// Chance (0 to 1) of dropping a random pickup (heal, magnet or bomb) when killed by a weapon.
+        /// Kept very low on regular enemies, which die by thousands.
+        /// </summary>
+        public float mPickupDropChance = 0.0002f;
+
+        /// <summary>
+        /// When true, touching the player damages it without killing the enemy, which bounces back instead (boss).
+        /// Regular enemies explode on contact.
+        /// </summary>
+        public bool mSurvivesContact = false;
+
+        /// <summary>
+        /// Marks the final boss: its health is shown on the HUD, and killing it wins the game.
+        /// </summary>
+        public bool mIsBoss = false;
+
+        /// <summary>
+        /// When true, the enemy ignores the separation from its neighbors and walks through the horde (boss).
+        /// </summary>
+        public bool mPassesThroughEnemies = false;
         
         /// <summary>
         /// Baker class that converts MonoBehaviour data to ECS components.
@@ -45,15 +78,38 @@ namespace Roguelike.DOTS
                 AddComponent(lEntity, new EnemySpeedComponent
                 {
                     mValue = pAuthoring.mMoveSpeed,              // Transfer editor-configured speed value
-                    mSmoothedSeparation = float3.zero            // Initialize separation vector
+                    mSmoothedSeparation = float3.zero,           // Initialize separation vector
+                    mPassesThroughEnemies = pAuthoring.mPassesThroughEnemies
                 });
 
                 // Add the damage component for collision handling
                 // The movement system reads this value when an enemy contacts the player
                 AddComponent(lEntity, new EnemyDamageComponent
                 {
-                    mValue = pAuthoring.mDamage                  // Transfer editor-configured damage value
+                    mValue = pAuthoring.mDamage,                 // Transfer editor-configured damage value
+                    mSurvivesContact = pAuthoring.mSurvivesContact
                 });
+
+                if (pAuthoring.mIsBoss)
+                {
+                    AddComponent(lEntity, new EnemyBossTag { mMaxHealth = pAuthoring.mMaxHealth });
+                }
+
+                AddComponent(lEntity, new EnemyHealthComponent
+                {
+                    mValue = pAuthoring.mMaxHealth
+                });
+
+                AddComponent(lEntity, new EnemyRewardComponent
+                {
+                    mExperience = pAuthoring.mExperience,
+                    mPickupDropChance = pAuthoring.mPickupDropChance
+                });
+
+                // Hit feedback: red flash and knockback, both at rest
+                AddComponent(lEntity, new EnemyHitFlash { mValue = 0f });
+                AddComponent(lEntity, new EnemyKnockback { mVelocity = float3.zero });
+                AddComponent(lEntity, new EnemyWaveHit { mLastWaveId = 0 });
 
                 // Add the death and contact markers, disabled until the enemy dies or touches the player
                 AddComponent<EnemyDeadTag>(lEntity);
@@ -83,6 +139,11 @@ namespace Roguelike.DOTS
         /// Uses exponential smoothing to create natural movement curves.
         /// </summary>
         public float3 mSmoothedSeparation;
+
+        /// <summary>
+        /// When true, the enemy ignores the separation from its neighbors and walks through the horde (boss).
+        /// </summary>
+        public bool mPassesThroughEnemies;
     }
 
     /// <summary>
@@ -97,6 +158,87 @@ namespace Roguelike.DOTS
         /// Applied when the enemy collides with the player entity.
         /// </summary>
         public int mValue;
+
+        /// <summary>
+        /// When true, touching the player does not kill the enemy (boss).
+        /// </summary>
+        public bool mSurvivesContact;
+    }
+
+    /// <summary>
+    /// Marks the final boss. Its maximum health is kept to display its health bar.
+    /// </summary>
+    public struct EnemyBossTag : IComponentData
+    {
+        public float mMaxHealth;
+    }
+
+    /// <summary>
+    /// Remaining health of an enemy. Lowered by the EnemyBridge (direct hits, main thread) and by the
+    /// EnemyAreaDamageSystem (area weapons, parallel job).
+    /// </summary>
+    public struct EnemyHealthComponent : IComponentData
+    {
+        public float mValue;
+    }
+
+    /// <summary>
+    /// Experience given by the orb dropped when a weapon kills the enemy, and chance of dropping a pickup.
+    /// </summary>
+    public struct EnemyRewardComponent : IComponentData
+    {
+        public float mExperience;
+
+        /// <summary>
+        /// Chance (0 to 1) of dropping a random pickup when killed by a weapon.
+        /// </summary>
+        public float mPickupDropChance;
+    }
+
+    /// <summary>
+    /// Intensity of the red flash shown when the enemy takes damage, from 0 (none) to 1 (fully red).
+    /// Bound to the per-instance _HitFlash property of the enemy shader graphs: Entities Graphics uploads it to the GPU.
+    /// Set to 1 by the EnemyBridge on hit, then faded out by the movement job.
+    /// </summary>
+    [MaterialProperty("_HitFlash")]
+    public struct EnemyHitFlash : IComponentData
+    {
+        public float mValue;
+    }
+
+    /// <summary>
+    /// Velocity pushing the enemy away from the last hit, added to its movement and damped over time.
+    /// </summary>
+    public struct EnemyKnockback : IComponentData
+    {
+        /// <summary>
+        /// Exponential damping rate of the knockback velocity, per second. An initial speed v moves the enemy
+        /// by v / DampingRate in total.
+        /// </summary>
+        public const float DampingRate = 10f;
+
+        public float3 mVelocity;
+
+        /// <summary>
+        /// Returns the knockback to keep when an enemy is hit again: the strongest push wins, so that a weak push
+        /// (e.g. the Aura) never cancels a strong one (e.g. the Nova) hitting during the same frame.
+        /// </summary>
+        /// <param name="pCurrent">Current knockback velocity.</param>
+        /// <param name="pNew">Knockback velocity of the new hit.</param>
+        /// <returns>The velocity with the highest speed.</returns>
+        public static float3 Strongest(float3 pCurrent, float3 pNew)
+        {
+            return math.lengthsq(pNew) > math.lengthsq(pCurrent) ? pNew : pCurrent;
+        }
+    }
+
+    /// <summary>
+    /// Identifier of the last expanding wave (Nova) that hit the enemy, so that a wave hits each enemy only once,
+    /// even when its push carries the enemy ahead of the wave front.
+    /// </summary>
+    public struct EnemyWaveHit : IComponentData
+    {
+        public int mLastWaveId;
     }
 
     /// <summary>

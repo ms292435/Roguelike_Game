@@ -1,5 +1,3 @@
-using UnityEngine;
-
 namespace Roguelike
 {
     /// <summary>
@@ -8,13 +6,5 @@ namespace Roguelike
     /// </summary>
     public class FireWandProjectile : Projectile
     {
-        /// <summary>
-        /// Hook called upon collision with an enemy.
-        /// Currently relies on base destruction and proxy damage.
-        /// </summary>
-        protected override void OnHit()
-        {
-            base.OnHit();
-        }
     }
 }

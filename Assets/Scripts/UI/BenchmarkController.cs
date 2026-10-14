@@ -23,7 +23,7 @@ namespace Roguelike
         /// </summary>
         public static int TargetEnemyCount { get; private set; } = 2000;
 
-        private static bool mClearRequested = false;
+        private static bool sClearRequested = false;
 
         [Header("UI Display Settings")]
         [SerializeField] private bool mShowOverlay = true;
@@ -91,7 +91,7 @@ namespace Roguelike
         /// </summary>
         public static void RequestClear()
         {
-            mClearRequested = true;
+            sClearRequested = true;
             TargetEnemyCount = 0;
             EnemyCounterSystem.TotalEnemies = 0;
             EnemyCounterSystem.VisibleEnemies = 0;
@@ -104,9 +104,9 @@ namespace Roguelike
         /// <returns>True if a clear was requested, false otherwise.</returns>
         public static bool ConsumeClearRequest()
         {
-            if (mClearRequested)
+            if (sClearRequested)
             {
-                mClearRequested = false;
+                sClearRequested = false;
                 return true;
             }
             return false;
@@ -114,6 +114,9 @@ namespace Roguelike
 
         private void Update()
         {
+            // The benchmark controls are only available in Benchmark mode
+            if (!GameManager.IsBenchmarkMode) return;
+
             ProcessKeyboardInput();
         }
 
@@ -194,7 +197,7 @@ namespace Roguelike
 
         private void OnGUI()
         {
-            if (!mShowOverlay) return;
+            if (!mShowOverlay || !GameManager.IsBenchmarkMode) return;
 
             InitializeStyles();
 
