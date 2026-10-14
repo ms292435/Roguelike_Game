@@ -1032,6 +1032,7 @@ MonoBehaviour:
   mTileSize: 100
   mViewDistance: 2
   mGroundDepth: 1
+  mGroundRenderQueue: 2000
 --- !u!1 &509734965
 GameObject:
   m_ObjectHideFlags: 0

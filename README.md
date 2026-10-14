@@ -7,6 +7,8 @@
 
 A performance benchmark and portfolio project developed in **Unity 6**. The same Survivor-like game is implemented twice, once with **classic Object-Oriented Programming (MonoBehaviour)** and once with the **Data-Oriented Technology Stack (DOTS / ECS)**, then profiled under identical conditions to measure where each architecture reaches its limits, and why.
 
+> ### DOTS/ECS handles **30× more enemies** at a playable framerate (8,000 → 250,000), and simulates them **91× faster** (45.59 ms → 0.50 ms at 10,000 enemies).
+
 The DOTS version is also a **playable game**: a 5-minute survival run against a horde of up to 20,000 enemies, ending with a final boss (see [Game Mode](#game-mode)).
 
 ![In-Game Horde Benchmark](Documentation/images/gameplay_horde.png)
@@ -351,7 +353,7 @@ Frame time measured as a **median over a few hundred frames** (Highlights module
 
 | Enemies | 50k | 100k | 250k | 500k | 1M |
 |:---|:---:|:---:|:---:|:---:|:---:|
-| **Frame, Phase 2** (single frame) | 6.83 ms | 9.88 ms | 22.93 ms | 43.00 ms | 88.62 ms |
+| **Frame, Phase 2** (median) | 6.83 ms | 9.88 ms | 22.93 ms | 45.00 ms | 88.62 ms |
 | **Frame, Phase 3** (median) | 5.62 ms | 9.39 ms | 22.20 ms | 44.60 ms | 87.27 ms |
 
 The difference is within the measurement noise, and the whole-frame Timeline shows why:
