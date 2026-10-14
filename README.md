@@ -353,8 +353,8 @@ Frame time measured as a **median over a few hundred frames** (Highlights module
 
 | Enemies | 50k | 100k | 250k | 500k | 1M |
 |:---|:---:|:---:|:---:|:---:|:---:|
-| **Frame, Phase 2** (median) | 6.83 ms | 9.88 ms | 22.93 ms | 45.00 ms | 88.62 ms |
-| **Frame, Phase 3** (median) | 5.62 ms | 9.39 ms | 22.20 ms | 44.60 ms | 87.27 ms |
+| **Frame, Phase 2** | 6.83 ms | 9.88 ms | 22.93 ms | 45.00 ms | 88.62 ms |
+| **Frame, Phase 3** | 5.62 ms | 9.39 ms | 22.20 ms | 44.60 ms | 87.27 ms |
 
 The difference is within the measurement noise, and the whole-frame Timeline shows why:
 
