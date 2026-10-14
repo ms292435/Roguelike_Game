@@ -59,7 +59,7 @@ namespace Roguelike
         /// </summary>
         public void DisplayGameOver()
         {
-            DisplayResult("GAME OVER", mDefeatBackgroundColor, mDefeatTitleColor);
+            DisplayResult("GAME OVER", mDefeatBackgroundColor, mDefeatTitleColor, false);
         }
 
         /// <summary>
@@ -67,7 +67,7 @@ namespace Roguelike
         /// </summary>
         public void DisplayVictory()
         {
-            DisplayResult("VICTORY!", mVictoryBackgroundColor, mVictoryTitleColor);
+            DisplayResult("VICTORY!", mVictoryBackgroundColor, mVictoryTitleColor, true);
         }
 
         /// <summary>
@@ -167,8 +167,12 @@ namespace Roguelike
         /// <param name="pTitle">Title displayed at the top of the end panel.</param>
         /// <param name="pBackgroundColor">Color of the end panel background.</param>
         /// <param name="pTitleColor">Color of the title.</param>
-        private void DisplayResult(string pTitle, Color pBackgroundColor, Color pTitleColor)
+        /// <param name="pVictory">True if the run was won, recorded in the high scores.</param>
+        private void DisplayResult(string pTitle, Color pBackgroundColor, Color pTitleColor, bool pVictory)
         {
+            // Game runs are recorded in the high scores before the run is stopped; benchmarks are not
+            int lRank = IsInSession && !IsBenchmarkMode ? RecordHighScore(pVictory) : 0;
+
             WaveDirector.StopRun();
             IsInSession = false;
 
@@ -181,10 +185,31 @@ namespace Roguelike
             }
 
             if (mScoreText != null)
-                mScoreText.text = $"Score: {Score}";
+            {
+                mScoreText.text = lRank == 1 ? $"Score: {Score} - New high score!"
+                    : lRank > 1 ? $"Score: {Score} - Rank #{lRank}"
+                    : $"Score: {Score}";
+            }
 
             // Stop time to freeze the game when the end panel is displayed
             Time.timeScale = 0f;
+        }
+
+        /// <summary>
+        /// Records the finished run in the high scores.
+        /// </summary>
+        /// <param name="pVictory">True if the run was won.</param>
+        /// <returns>Rank of the run in the high scores, or 0 if it did not make it.</returns>
+        private int RecordHighScore(bool pVictory)
+        {
+            return HighScores.Submit(new HighScoreEntry
+            {
+                mKills = Score,
+                mTime = WaveDirector.ElapsedTime,
+                mLevel = LevelUpManager.Instance != null ? LevelUpManager.Instance.CurrentLevel : 1,
+                mVictory = pVictory,
+                mDate = System.DateTime.Now.ToString("yyyy-MM-dd"),
+            });
         }
 
         /// <summary>
@@ -233,6 +258,7 @@ namespace Roguelike
             }
 
             PauseMenu.EnsureExists();
+            MainMenuScreens.EnsureExists(mMainMenuPanel);
         }
 
         private void Start()

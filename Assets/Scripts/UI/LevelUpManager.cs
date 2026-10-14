@@ -25,6 +25,11 @@ namespace Roguelike
         /// </summary>
         public bool IsChoosingUpgrade => mLevelUpPanel != null && mLevelUpPanel.activeSelf;
 
+        /// <summary>
+        /// Level reached by the player during the current run.
+        /// </summary>
+        public int CurrentLevel => mCurrentLevel;
+
         private int mCurrentLevel = 1;
         private readonly Dictionary<UpgradeData, System.Action> mPendingActions = new();
 
