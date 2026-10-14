@@ -18,12 +18,6 @@ namespace Roguelike
         private float mDamage;
 
         /// <summary>
-        /// Virtual hook called when projectile hits an enemy.
-        /// Subclasses can override to implement custom hit effects.
-        /// </summary>
-        protected virtual void OnHit() { }
-
-        /// <summary>
         /// Initializes projectile with direction and damage values.
         /// Sets up initial position, rotation, and configures fire direction.
         /// </summary>
@@ -72,10 +66,9 @@ namespace Roguelike
                 return;
             }
 
-            // Despawn projectile and invoke hit hook if collision occurred
+            // Despawn the projectile on its first hit
             if (lHits > 0)
             {
-                OnHit();
                 ReturnToPool();
             }
         }
@@ -93,7 +86,7 @@ namespace Roguelike
         /// Unity Update loop called every frame.
         /// Handles projectile movement and collision checks each frame.
         /// </summary>
-        void Update()
+        private void Update()
         {
             // Move projectile along its fire direction
             Move();

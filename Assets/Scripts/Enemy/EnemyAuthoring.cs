@@ -174,7 +174,8 @@ namespace Roguelike.DOTS
     }
 
     /// <summary>
-    /// Remaining health of an enemy. Written on the main thread by the EnemyBridge when a weapon hits the enemy.
+    /// Remaining health of an enemy. Lowered by the EnemyBridge (direct hits, main thread) and by the
+    /// EnemyAreaDamageSystem (area weapons, parallel job).
     /// </summary>
     public struct EnemyHealthComponent : IComponentData
     {
@@ -182,7 +183,7 @@ namespace Roguelike.DOTS
     }
 
     /// <summary>
-    /// Experience given by the orb dropped when a weapon kills the enemy.
+    /// Experience given by the orb dropped when a weapon kills the enemy, and chance of dropping a pickup.
     /// </summary>
     public struct EnemyRewardComponent : IComponentData
     {

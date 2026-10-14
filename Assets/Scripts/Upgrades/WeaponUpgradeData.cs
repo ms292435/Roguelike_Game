@@ -20,11 +20,6 @@ namespace Roguelike
         public GameObject mProjectilePrefab;
 
         /// <summary>
-        /// Category identifier for the weapon type (e.g. "Sword", "FireWand").
-        /// </summary>
-        public string Type;
-
-        /// <summary>
         /// Maximum upgrade level achievable for this weapon before it is excluded from level-up choices.
         /// </summary>
         public int MaxLevel = 7;

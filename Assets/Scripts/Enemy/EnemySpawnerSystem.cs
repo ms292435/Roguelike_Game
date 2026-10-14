@@ -5,12 +5,11 @@ using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Rendering;
-using Roguelike;
 
 namespace Roguelike.DOTS
 {
     /// <summary>
-    /// System that manages enemy spawning at screen edges based on difficulty progression.
+    /// System that manages enemy spawning at screen edges, at the rate set by the WaveDirector or the BenchmarkController.
     /// Runs on the main thread to access Unity's Camera and rendering systems.
     /// Instantiates enemy waves with random spawn positions around viewport boundaries.
     /// Runs before the systems that record commands on enemies and experience orbs: the clear and trim paths
@@ -70,9 +69,8 @@ namespace Roguelike.DOTS
         /// </summary>
         public void OnCreate(ref SystemState pState)
         {
-            // Require spawner data and managed components to be present
+            // Require the spawner data to be present
             pState.RequireForUpdate<EnemySpawnerData>();
-            pState.RequireForUpdate<EnemySpawnerManaged>();
 
             mEnemyQuery = SystemAPI.QueryBuilder().WithAll<EnemySpeedComponent>().Build();
             mAliveEnemyQuery = SystemAPI.QueryBuilder().WithAll<EnemySpeedComponent>().WithDisabled<EnemyDeadTag>().Build();
@@ -88,7 +86,7 @@ namespace Roguelike.DOTS
             // --- Benchmark Clear Processing ---
             if (BenchmarkController.ConsumeClearRequest())
             {
-                // Enemies already queued for destruction are left to the pending command buffer
+                // Enemies already flagged dead are left to the EnemyDeathSystem
                 pState.EntityManager.DestroyEntity(mAliveEnemyQuery);
                 pState.EntityManager.DestroyEntity(mExperienceQuery);
                 EnemyCounterSystem.TotalEnemies = 0;
@@ -112,7 +110,7 @@ namespace Roguelike.DOTS
             // Clear immediately if target is 0
             if (lTargetEnemyCount == 0)
             {
-                // Enemies already queued for destruction are left to the pending command buffer
+                // Enemies already flagged dead are left to the EnemyDeathSystem
                 pState.EntityManager.DestroyEntity(mAliveEnemyQuery);
                 pState.EntityManager.DestroyEntity(mExperienceQuery);
                 EnemyCounterSystem.TotalEnemies = 0;
@@ -150,7 +148,7 @@ namespace Roguelike.DOTS
             // Register the mesh and material of each enemy prefab once, then assign them directly to spawned enemies
             if (!mInitialized)
             {
-                foreach (var (lSpawnerData, _) in SystemAPI.Query<RefRO<EnemySpawnerData>, EnemySpawnerManaged>())
+                foreach (var lSpawnerData in SystemAPI.Query<RefRO<EnemySpawnerData>>())
                 {
                     if (!TryRegisterRendering(ref pState, lSpawnerData.ValueRO.mPrefab, out mMeshID, out mMaterialID))
                         continue;
@@ -176,9 +174,6 @@ namespace Roguelike.DOTS
             // Refresh current enemy count for capacity checks
             lCurrentEnemyCount = mEnemyQuery.CalculateEntityCount();
 
-            // Clamp delta time to prevent large jumps (max 0.1s per frame)
-            float lDeltaTime = math.min(SystemAPI.Time.DeltaTime, 0.1f);
-
             // Get main camera and viewport information
             Camera lCam = Camera.main;
             float3 lCamPos = lCam.transform.position;
@@ -190,7 +185,7 @@ namespace Roguelike.DOTS
             float lHealthMultiplier = lIsBenchmark ? 1f : WaveDirector.EnemyHealthMultiplier;
 
             // Iterate through all spawner entities
-            foreach (var (lSpawnerData, _) in SystemAPI.Query<RefRW<EnemySpawnerData>, EnemySpawnerManaged>())
+            foreach (var lSpawnerData in SystemAPI.Query<RefRW<EnemySpawnerData>>())
             {
                 // --- Prefab Validation Check ---
                 // Ensure enemy prefab is valid before attempting instantiation
@@ -204,8 +199,6 @@ namespace Roguelike.DOTS
                     continue;
                 }
 
-                // Update game timer
-                lSpawnerData.ValueRW.mGameTimer += lDeltaTime;
                 var lRandom = lSpawnerData.ValueRO.mRandom;
 
                 // --- Final boss (game mode only) ---

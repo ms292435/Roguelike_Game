@@ -18,7 +18,7 @@ namespace Roguelike
         [SerializeField] private AudioSource mEnemiesSource;
 
         private float mLastDeathSoundTime;
-        private const float mDeathSoundCooldown = 0.05f;
+        private const float DeathSoundCooldown = 0.05f;
 
         private void Awake()
         {
@@ -47,7 +47,7 @@ namespace Roguelike
             if (pClip == null || mEnemiesSource == null) return;
 
             // Verify cooldown to prevent audio clutter when multiple enemies die simultaneously
-            if (Time.time - mLastDeathSoundTime > mDeathSoundCooldown)
+            if (Time.time - mLastDeathSoundTime > DeathSoundCooldown)
             {
                 // Randomize pitch slightly to add variety to the sound effects
                 mEnemiesSource.pitch = Random.Range(0.8f, 1.2f);

@@ -26,9 +26,8 @@ namespace Roguelike
         [Tooltip("Rotation speed of the aura visual, in degrees per second. Purely visual.")]
         public float mRotationSpeed = 12f;
 
-        [Tooltip("Sorting layer of the aura. Enemies are rendered by Entities Graphics, which ignores sorting layers: " +
-                 "they always sort as Default, order 0. On the same layer, the aura is placed slightly further from the " +
-                 "camera so that it is drawn under them.")]
+        [Tooltip("Sorting layer of the aura, below the player (Entities layer). Enemies are rendered by Entities " +
+                 "Graphics, which ignores sorting layers: the render queue keeps the aura under them.")]
         public string mSortingLayer = "Default";
 
         [Tooltip("Depth offset placing the aura behind the enemies, which are between z = 0.05 (boss) and 0.51.")]

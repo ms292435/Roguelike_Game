@@ -1,10 +1,12 @@
+using UnityEngine;
+
 namespace Roguelike
 {
     /// <summary>
     /// Core gameplay entity class defining combat and movement attributes (Health, Damage, Speed).
     /// Inherited by player and OOP entity implementations.
     /// </summary>
-    public abstract class RoguelikeEntity : EntityBase
+    public abstract class RoguelikeEntity : MonoBehaviour
     {
         /// <summary>
         /// Current health points of the entity.

@@ -30,10 +30,10 @@ namespace Roguelike
         /// </summary>
         public static void EnsureExists()
         {
-            if (FindFirstObjectByType<PauseMenu>() != null) return;
+            if (FindAnyObjectByType<PauseMenu>() != null) return;
 
             Canvas lCanvas = null;
-            foreach (var lCandidate in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            foreach (var lCandidate in FindObjectsByType<Canvas>())
             {
                 if (!lCandidate.isRootCanvas) continue;
                 if (lCanvas == null || lCandidate.renderMode == RenderMode.ScreenSpaceOverlay) lCanvas = lCandidate;

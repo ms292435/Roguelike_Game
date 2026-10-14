@@ -42,7 +42,7 @@ namespace Roguelike
 
         public TextMeshProUGUI mScoreText;
 
-        private static bool mSkipMainMenu = false;
+        private static bool sSkipMainMenu = false;
 
         [Header("Victory Screen")]
         [SerializeField] private Color mVictoryBackgroundColor = new(0.06f, 0.1f, 0.28f, 0.92f);
@@ -87,9 +87,6 @@ namespace Roguelike
         }
 
         /// <summary>
-        /// Restarts the active scene and bypasses the main menu directly into the same mode.
-        /// </summary>
-        /// <summary>
         /// Restarts the scene directly into a session of the given mode (pause menu).
         /// </summary>
         /// <param name="pBenchmark">True to restart in Benchmark mode, false in Game mode.</param>
@@ -104,7 +101,7 @@ namespace Roguelike
         /// </summary>
         public void ReturnToMainMenu()
         {
-            mSkipMainMenu = false;
+            sSkipMainMenu = false;
             Time.timeScale = 1f;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
@@ -121,9 +118,12 @@ namespace Roguelike
 #endif
         }
 
+        /// <summary>
+        /// Restarts the active scene and bypasses the main menu directly into the same mode.
+        /// </summary>
         public static void ReplayGame()
         {
-            mSkipMainMenu = true;
+            sSkipMainMenu = true;
             Time.timeScale = 1f;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
@@ -227,7 +227,7 @@ namespace Roguelike
             }
             if (mResultTitleText != null) mDefeatTitleColor = mResultTitleText.color;
 
-            if (!mSkipMainMenu)
+            if (!sSkipMainMenu)
             {
                 ShowMainMenu();
             }
@@ -238,9 +238,9 @@ namespace Roguelike
         private void Start()
         {
             // Replays start in Start rather than Awake, so that the Player has initialized before its stats are applied
-            if (mSkipMainMenu)
+            if (sSkipMainMenu)
             {
-                mSkipMainMenu = false;
+                sSkipMainMenu = false;
                 StartSession(IsBenchmarkMode);
             }
         }

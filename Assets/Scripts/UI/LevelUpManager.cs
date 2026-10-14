@@ -56,15 +56,14 @@ namespace Roguelike
             // Every upgrade is maxed out: nothing to choose, so the game goes on without opening the panel
             if (lSelectedChoices.Count == 0) return;
 
-            Time.timeScale = 0f;
             ShowUpgradeOptions(lSelectedChoices);
         }
 
         /// <summary>
-        /// Instantiates upgrade card buttons for the rolled choices and displays the level-up panel.
+        /// Instantiates upgrade card buttons for the rolled choices, displays the level-up panel and pauses the game.
         /// </summary>
         /// <param name="pChoices">List of upgrade options to present.</param>
-        public void ShowUpgradeOptions(List<UpgradeData> pChoices)
+        private void ShowUpgradeOptions(List<UpgradeData> pChoices)
         {
             mPendingActions.Clear();
             foreach (Transform lChild in mUpgradeUIContainer)
@@ -152,7 +151,7 @@ namespace Roguelike
         }
 
         /// <summary>
-        /// Selects a randomized subset of available upgrades, filtering out max-level weapons.
+        /// Selects a randomized subset of available upgrades, filtering out max-level weapons and stat boosts.
         /// </summary>
         /// <param name="pCount">Number of choices to return.</param>
         /// <returns>Filtered and randomized upgrade list.</returns>
@@ -206,6 +205,11 @@ namespace Roguelike
             if (Instance == this)
             {
                 Instance = null;
+            }
+
+            if (Player.Instance != null)
+            {
+                Player.Instance.RemoveObserver(this);
             }
         }
     }

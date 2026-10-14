@@ -17,5 +17,4 @@ MonoBehaviour:
   Description: Damages every enemy around you
   mWeaponLogicPrefab: {fileID: 2868786558350321303, guid: 15e9f99b71724e3ba0cf82ff8f3b01a1, type: 3}
   mProjectilePrefab: {fileID: 0}
-  Type: Aura
   MaxLevel: 7

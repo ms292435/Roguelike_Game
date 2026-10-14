@@ -17,5 +17,4 @@ MonoBehaviour:
   Description: 
   mWeaponLogicPrefab: {fileID: 3661868248530554710, guid: c6d49c2c636ed5d43891419cd1998db2, type: 3}
   mProjectilePrefab: {fileID: 157765932926480156, guid: ed7335cd2842a9848a53efd517e0288c, type: 3}
-  Type: FireWand
   MaxLevel: 7

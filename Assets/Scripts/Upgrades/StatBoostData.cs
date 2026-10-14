@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Roguelike
 {
     /// <summary>
-    /// ScriptableObject defining passive stat bonuses (Health, Damage, Speed) applied upon level up.
+    /// ScriptableObject defining passive stat bonuses (Health, Damage, Speed, Pickup range) applied upon level up.
     /// </summary>
     [CreateAssetMenu(fileName = "NewStatBoost", menuName = "Roguelike/Upgrades/Stat Boost")]
     public class StatBoostData : UpgradeData

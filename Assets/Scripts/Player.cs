@@ -9,7 +9,6 @@ namespace Roguelike
     /// </summary>
     public class Player : RoguelikeEntity, ISubject
     {
-        public ExperienceBar mExperienceBar;
         public Transform mWeaponSlot;
 
         public float mAttractRadius = 2f;
@@ -161,7 +160,7 @@ namespace Roguelike
         /// Applies a stat boost chosen on level up. Each boost adds a fraction of the base stat, so that boosts stack
         /// additively: five +10% damage boosts give +50%, instead of +61% if they multiplied each other.
         /// </summary>
-        /// <param name="pStat">Boosted stat: "Health", "Damage" or "Speed".</param>
+        /// <param name="pStat">Boosted stat: "Health", "Damage", "Speed" or "Pickup".</param>
         /// <param name="pBonus">Fraction of the base stat added, e.g. 0.1 for +10%.</param>
         public void ApplyStatBoost(string pStat, float pBonus)
         {
@@ -230,7 +229,7 @@ namespace Roguelike
         /// <summary>
         /// Tells whether a stat can still be boosted, so that maxed-out boosts are no longer offered on level up.
         /// </summary>
-        /// <param name="pStat">Stat to check: "Health", "Damage" or "Speed".</param>
+        /// <param name="pStat">Stat to check: "Health", "Damage", "Speed" or "Pickup".</param>
         /// <returns>False when the stat has reached its cap.</returns>
         public bool CanBoostStat(string pStat)
         {
@@ -255,9 +254,9 @@ namespace Roguelike
             {
                 CurrentXP -= MaxXP;
                 MaxXP = Mathf.Round(MaxXP * mXPGrowthFactor + mXPGrowthFlat);
-                Notify("LevelUp"); 
+                Notify("LevelUp");
             }
-            Notify("Experience"); 
+            Notify("Experience");
         }
 
         private void Awake()
@@ -273,7 +272,7 @@ namespace Roguelike
             mBaseAttractRadius = mAttractRadius;
             MaxHealth = mStartHealth;
             Health = MaxHealth;
-            Damage = 1f;   // Multiplier applied to every weapon's damage, raised by the Damage Up boost
+            Damage = BaseDamage;   // Multiplier applied to every weapon's damage, raised by the Damage Up boost
             Speed = BaseSpeed;
             MaxXP = mStartMaxXP;
             CurrentXP = 0f;

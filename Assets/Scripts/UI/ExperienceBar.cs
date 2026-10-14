@@ -12,7 +12,6 @@ namespace Roguelike
     {
         public Image mXpFill;
         public TextMeshProUGUI mXpText;
-        public static ExperienceBar Instance { get; private set; }
 
         /// <summary>
         /// Observer callback triggered by player events.
@@ -26,7 +25,7 @@ namespace Roguelike
                 UpdateExperienceBar(lPlayer);
             }
         }
-            
+
         /// <summary>
         /// Updates the fill amount and text display based on player XP values.
         /// </summary>
@@ -44,16 +43,6 @@ namespace Roguelike
             }
         }
 
-        private void Awake()
-        {
-            if (Instance != null && Instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-            Instance = this;
-        }
-
         private void Start()
         {
             if (Player.Instance != null)
@@ -65,9 +54,9 @@ namespace Roguelike
 
         private void OnDestroy()
         {
-            if (Instance == this)
+            if (Player.Instance != null)
             {
-                Instance = null;
+                Player.Instance.RemoveObserver(this);
             }
         }
     }

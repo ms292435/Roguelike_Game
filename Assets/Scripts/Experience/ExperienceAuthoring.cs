@@ -8,7 +8,7 @@ namespace Roguelike.DOTS
     /// Gets baked into ECS components at runtime for high-performance experience collection logic.
     /// Stores base properties for attraction speed and experience value.
     /// </summary>
-        public class ExperienceAuthoring : MonoBehaviour
+    public class ExperienceAuthoring : MonoBehaviour
     {
         public float mValue = 1f;
         public float mAttractionSpeed = 8f;

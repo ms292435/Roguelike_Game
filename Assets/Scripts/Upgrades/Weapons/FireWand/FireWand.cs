@@ -16,7 +16,7 @@ namespace Roguelike
         private float mDamage = 50f;
         private float mFireRate = 0.5f;
         private float mFireTimer = 0f;
-        private const float mTargetRange = 18f;
+        private const float TargetRange = 18f;
 
         [SerializeField] private AudioClip mAttackSound;
 
@@ -50,7 +50,7 @@ namespace Roguelike
         {
             var lPlayerPosition = Player.Instance.mCurrentPosition;
 
-            if (!DOTS.EnemyBridge.TryGetClosestEnemy(lPlayerPosition, mTargetRange, out Vector3 lTargetPos))
+            if (!DOTS.EnemyBridge.TryGetClosestEnemy(lPlayerPosition, TargetRange, out Vector3 lTargetPos))
             {
                 return;
             }

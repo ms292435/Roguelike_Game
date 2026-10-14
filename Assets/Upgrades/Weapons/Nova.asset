@@ -17,5 +17,4 @@ MonoBehaviour:
   Description: Releases a shockwave that pushes enemies back
   mWeaponLogicPrefab: {fileID: 2868786558350321303, guid: f5673c63681d45f9b44e51dd39b1ce4e, type: 3}
   mProjectilePrefab: {fileID: 0}
-  Type: Nova
   MaxLevel: 7

@@ -4,7 +4,7 @@ namespace Roguelike
 {
     /// <summary>
     /// Melee weapon that executes circular slashing attacks around the player.
-    /// Spawns visual slash VFX instances and applies damage to ECS enemies via EnemyDamageProxy.
+    /// Spawns visual slash VFX instances and applies damage to ECS enemies via the EnemyBridge.
     /// </summary>
     public class Sword : MonoBehaviour, IWeapon
     {
@@ -48,7 +48,7 @@ namespace Roguelike
 
         /// <summary>
         /// Distributes slash attacks evenly in a circle around the player.
-        /// Instantiates visual slash effects and deals area damage through the ECS damage proxy.
+        /// Instantiates visual slash effects and deals area damage through the EnemyBridge.
         /// </summary>
         /// <param name="pCount">Number of slash strikes in the circular pattern.</param>
         private void PerformCircularAttack(int pCount)
